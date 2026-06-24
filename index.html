@@ -234,10 +234,10 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
   color:var(--g);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
   text-transform:uppercase;margin-right:3px;margin-top:2px;}
 .sp{flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;}
-.so{background:rgba(245,158,11,.12);color:var(--a);border:1px solid rgba(245,158,11,.25);}
-.sa{background:rgba(59,130,246,.12);color:var(--bl);border:1px solid rgba(59,130,246,.25);}
-.sab{background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.25);}
-.sg{background:rgba(161,161,170,.1);color:var(--g);border:1px solid var(--r);}
+.pill-o{background:rgba(245,158,11,.12);color:var(--a);border:1px solid rgba(245,158,11,.25);}
+.pill-a{background:rgba(59,130,246,.12);color:var(--bl);border:1px solid rgba(59,130,246,.25);}
+.pill-ab{background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.25);}
+.pill-g{background:rgba(161,161,170,.1);color:var(--g);border:1px solid var(--r);}
 .parr{font-size:15px;color:var(--g);transition:transform .2s;}
 .pk.op .parr{transform:rotate(180deg);}
 .pf{padding:10px 14px;border-top:1px solid var(--r);
@@ -452,6 +452,12 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 
     <!-- RAPPORT TAB -->
     <div class="tab" id="tab-rapport">
+      <div style="padding:12px 16px 0;display:flex;align-items:center;gap:10px;">
+        <button onclick="showTab('home')" style="width:36px;height:36px;border-radius:10px;
+          background:var(--k2);border:1px solid var(--r);color:var(--w);
+          font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+        <span style="font-size:16px;font-weight:800;">Tagesrapport</span>
+      </div>
       <div class="rapport">
         <div class="fg">
           <label class="fl">Projekt</label>
@@ -486,11 +492,17 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
         </div>
         <div class="fg">
           <label class="fl">Fotos</label>
-          <div class="foto-z" onclick="document.getElementById('finput').click()">
-            <input type="file" id="finput" accept="image/*" multiple capture="environment" onchange="handleFotos(event)">
-            <div class="foto-z-i">📷</div>
-            <div class="foto-z-t">Fotos von der Baustelle</div>
-            <div class="foto-z-s">Tippen zum Aufnehmen</div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div class="foto-z" style="flex:1;" onclick="document.getElementById('finput').click()">
+              <input type="file" id="finput" accept="image/*" multiple capture="environment" onchange="handleFotos(event)">
+              <div class="foto-z-i">📷</div>
+              <div class="foto-z-t">Kamera</div>
+            </div>
+            <div class="foto-z" style="flex:1;" onclick="document.getElementById('finput2').click()">
+              <input type="file" id="finput2" accept="image/*" multiple onchange="handleFotos(event)">
+              <div class="foto-z-i">🖼️</div>
+              <div class="foto-z-t">Aus Dateien</div>
+            </div>
           </div>
           <div class="foto-prev" id="fprev"></div>
         </div>
@@ -528,6 +540,17 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
           <button class="ptb" onclick="setPer('gesamt',this)">Gesamt</button>
         </div>
         <div id="ag"></div>
+        <!-- Such- und Filterleiste -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <input type="text" id="ma-suche" class="fi" placeholder="🔍 Mitarbeiter suchen…"
+            oninput="filterMA()" style="flex:1;font-size:14px;">
+          <select id="ma-rolle" class="fs" onchange="filterMA()" style="width:auto;min-width:110px;font-size:13px;">
+            <option value="">Alle Rollen</option>
+            <option value="monteur">Monteur</option>
+            <option value="bauleiter">Bauleiter</option>
+            <option value="projektleiter">Projektleiter</option>
+          </select>
+        </div>
         <div id="al"><div class="load"><div class="sp"></div></div></div>
       </div>
     </div>
@@ -783,7 +806,8 @@ async function ladeHist(){
   el.innerHTML=data.map(r=>{
     const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);
     const stdH=((a-e)/3600000);
-    const std=stdH.toFixed(2); // für Rapport-Übernahme
+    const stdRaw=Math.max(0.5, Math.round(stdH*10)/10);
+    const std=stdRaw.toFixed(1); // für Rapport-Übernahme
     const stdFmt=fmtStd(stdH);
     const dat=e.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
     const datISO=r.gestempelt_ein.split('T')[0];
@@ -816,19 +840,50 @@ function rapportVonStempel(pid,dat,std){
 function chip(el){document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');selL=el.dataset.v;}
 
 function handleFotos(e){
-  const files=Array.from(e.target.files);const pre=document.getElementById('fprev');pre.innerHTML='';fotoData=[];
-  files.slice(0,6).forEach(f=>{
+  const files=Array.from(e.target.files);
+  files.slice(0,6-fotoData.length).forEach(f=>{
     const r=new FileReader();
-    r.onload=ev=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');const mx=600;let w=i.width,h=i.height;if(w>mx){h=h*(mx/w);w=mx;}c.width=w;c.height=h;c.getContext('2d').drawImage(i,0,0,w,h);const d=c.toDataURL('image/jpeg',.7);fotoData.push(d);const t=document.createElement('img');t.src=d;t.className='foto-thumb';pre.appendChild(t);};i.src=ev.target.result;};r.readAsDataURL(f);
+    r.onload=ev=>{
+      const i=new Image();
+      i.onload=()=>{
+        const c=document.createElement('canvas');const mx=600;let w=i.width,h=i.height;
+        if(w>mx){h=h*(mx/w);w=mx;}c.width=w;c.height=h;
+        c.getContext('2d').drawImage(i,0,0,w,h);
+        const d=c.toDataURL('image/jpeg',.7);
+        const idx=fotoData.length;
+        fotoData.push(d);
+        renderFotoPrev();
+      };i.src=ev.target.result;
+    };r.readAsDataURL(f);
   });
+  e.target.value='';
+}
+
+function renderFotoPrev(){
+  const pre=document.getElementById('fprev');
+  pre.innerHTML=fotoData.map((d,i)=>`
+    <div style="position:relative;">
+      <img src="${d}" class="foto-thumb">
+      <div onclick="deleteFoto(${i})" style="position:absolute;top:3px;right:3px;
+        width:20px;height:20px;background:rgba(0,0,0,.7);border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:12px;cursor:pointer;color:white;">✕</div>
+    </div>`).join('');
+}
+
+function deleteFoto(idx){
+  fotoData.splice(idx,1);
+  renderFotoPrev();
 }
 
 async function rapportSenden(){
   const pid=document.getElementById('rproj').value;
-  const std=parseFloat(document.getElementById('rstd').value);
+  let std=parseFloat(document.getElementById('rstd').value);
   const desc=document.getElementById('rbesc').value.trim();
   const dat=document.getElementById('rdat').value;
   if(!pid||!std||!desc||!selL){showErr('Bitte alle Felder ausfüllen.');return;}
+  if(std<0.5){std=0.5;document.getElementById('rstd').value='0.5';}
+  if(std>16){showErr('Maximum 16 Stunden.');return;}
   const btn=document.getElementById('btnsend');btn.disabled=true;btn.textContent='⏳ Sende…';
   const {error}=await db.from('musa_rapporte').insert({projekt_id:pid,mitarbeiter_id:MA.id,datum:dat,stunden:std,leistung:selL,beschreibung:desc,fotos:fotoData.slice(0,3)});
   if(error){showErr('Fehler: '+error.message);}
@@ -861,7 +916,7 @@ async function renderDash(){
     if(filter!=='alle')gf=projekte.filter(p=>p.leistungen&&p.leistungen.includes(filter));
     el.innerHTML='';
     if(!gf.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>Keine Projekte.</div>';return;}
-    const sm={offen:['so','Offen'],aktiv:['sa','In Arbeit'],abnahme:['sab','Abnahme'],abgerechnet:['sg','Abgerechnet'],abgeschlossen:['sg','Abgeschlossen']};
+    const sm={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
     gf.forEach(p=>{
       const pr=r.filter(x=>x.projekt_id===p.id);
       const sh=pr.reduce((s,x)=>s+(x.stunden||0),0);
@@ -899,15 +954,14 @@ async function renderAusw(){
   const gh=r.reduce((s,x)=>s+(x.stunden||0),0);
   ag.innerHTML=`<div class="gk"><div><div class="gl">${period==='woche'?'Diese Woche':period==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gv">${gh.toFixed(1)}h</div></div><div class="gc"><div class="gl">Rapporte</div><div class="gcv">${r.length}</div></div></div>`;
   const mm={};
-  r.forEach(x=>{const id=x.mitarbeiter_id;if(!mm[id])mm[id]={n:x.musa_mitarbeiter?.name||'—',ro:x.musa_mitarbeiter?.rolle||'',h:0,rp:0,tg:new Set()};mm[id].h+=(x.stunden||0);mm[id].rp++;mm[id].tg.add(x.datum);});
+  r.forEach(x=>{const id=x.mitarbeiter_id;if(!mm[id])mm[id]={maId:id,n:x.musa_mitarbeiter?.name||'—',ro:x.musa_mitarbeiter?.rolle||'',h:0,rp:0,tg:new Set(),rapporte:[]};mm[id].h+=(x.stunden||0);mm[id].rp++;mm[id].tg.add(x.datum);mm[id].rapporte.push(x);});
   const arr=Object.values(mm).sort((a,b)=>b.h-a.h);
   const mx=arr.length>0?arr[0].h:1;
   if(!arr.length){al.innerHTML='<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';return;}
-  al.innerHTML=arr.map(m=>{
-    const pct=Math.round((m.h/mx)*100);
-    const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
-    return `<div class="mak"><div class="mat"><div><div class="man">${m.n}</div><span class="mar">${rl}</span></div><div><div class="mav">${m.h.toFixed(1)}</div><div class="mavl">Stunden</div></div></div><div class="bar-t"><div class="bar-f" style="width:${pct}%"></div></div><div class="mas"><div><div class="masv">${m.rp}</div><div class="masl">Rapporte</div></div><div><div class="masv">${m.tg.size}</div><div class="masl">Einsatztage</div></div><div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div></div></div>`;
-  }).join('');
+  // Alle Rapporte pro MA speichern für Detailansicht
+  window._auswRapporte = r;
+  window._maArr = arr; // für Filter
+  renderMAList(arr);
 }
 
 // ── RECHNUNGEN ──
@@ -937,6 +991,115 @@ async function renderRech(){
     const nt=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
     return `<div class="rc"><div class="rct"><div><div class="rcnr">${x.rechnungsnummer}</div><div class="rcpr">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${x.id}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${x.id}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick='pdf(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${x.notiz}</div>`:''}</div>`;
   }).join('');
+}
+
+function renderMAList(arr){
+  const mx=arr.length>0?arr[0].h:1;
+  const al=document.getElementById('al');
+  if(!arr.length){al.innerHTML='<div class="empty"><div class="ei">🔍</div>Kein Ergebnis.</div>';return;}
+  al.innerHTML=arr.map((m,idx)=>{
+    const pct=Math.round((m.h/mx)*100);
+    const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
+    return `<div class="mak" id="mak-${idx}" data-name="${m.n.toLowerCase()}" data-rolle="${m.ro}">
+      <div onclick="toggleMA(${idx})" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div>
+          <div class="man">${m.n}</div>
+          <span class="mar">${rl}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="text-align:right;">
+            <div class="mav">${m.h.toFixed(1)}</div>
+            <div class="mavl">${m.rp} Rapporte · ${m.tg.size} Tage</div>
+          </div>
+          <span id="mak-arr-${idx}" style="font-size:16px;color:var(--g);transition:transform .2s;flex-shrink:0;">▾</span>
+        </div>
+      </div>
+      <!-- Aufgeklappt: Bar + Stats + Rapporte -->
+      <div id="mak-detail-${idx}" style="display:none;margin-top:12px;">
+        <div class="bar-t"><div class="bar-f" style="width:${pct}%"></div></div>
+        <div class="mas" style="margin:10px 0;">
+          <div><div class="masv">${m.rp}</div><div class="masl">Rapporte</div></div>
+          <div><div class="masv">${m.tg.size}</div><div class="masl">Einsatztage</div></div>
+          <div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div>
+        </div>
+        <div id="mak-rlist-${idx}" style="border-top:1px solid var(--r);padding-top:10px;"></div>
+        <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:10px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
+      </div>
+    </div>`;
+  }).join('');
+  arr.forEach((m,idx)=>{ window['_maId_'+idx]=m.maId; });
+}
+
+function filterMA(){
+  const suche=document.getElementById('ma-suche').value.toLowerCase();
+  const rolle=document.getElementById('ma-rolle').value;
+  const arr=window._maArr||[];
+  const gefiltert=arr.filter(m=>{
+    const nameOk=!suche||m.n.toLowerCase().includes(suche);
+    const rolleOk=!rolle||m.ro===rolle;
+    return nameOk&&rolleOk;
+  });
+  renderMAList(gefiltert);
+}
+
+function toggleMA(idx){
+  const det=document.getElementById('mak-detail-'+idx);
+  const arr=document.getElementById('mak-arr-'+idx);
+  const open=det.style.display==='block';
+  det.style.display=open?'none':'block';
+  arr.style.transform=open?'':'rotate(180deg)';
+  if(!open){
+    // Rapporte laden
+    const rlist=document.getElementById('mak-rlist-'+idx);
+    const maId=window['_maId_'+idx];
+    const rr=(window._auswRapporte||[]).filter(r=>r.mitarbeiter_id===maId).sort((a,b)=>b.datum.localeCompare(a.datum));
+    if(!rr.length){rlist.innerHTML='<div style="color:var(--g);font-size:13px;padding:8px 0;">Keine Rapporte im Zeitraum.</div>';return;}
+    rlist.innerHTML=rr.map(r=>`
+      <div style="padding:10px 0;border-bottom:1px solid var(--r);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">${r.musa_projekte?.name||'—'}</div>
+          <div style="font-size:11px;color:var(--g);">${r.datum} · ${r.leistung}</div>
+          <div style="font-size:12px;color:var(--tx);margin-top:2px;">${r.beschreibung}</div>
+        </div>
+        <div style="font-size:15px;font-weight:800;color:var(--a);white-space:nowrap;">${r.stunden}h</div>
+      </div>`).join('');
+  }
+}
+
+function pdfMA(name, maId){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
+  const rr=(window._auswRapporte||[]).filter(r=>r.mitarbeiter_id===maId).sort((a,b)=>b.datum.localeCompare(a.datum));
+  const totalH=rr.reduce((s,r)=>s+(r.stunden||0),0);
+  // Header
+  doc.setFillColor(245,158,11);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(24,24,27);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('BauDesk — Stundenauswertung',14,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Erstellt am '+new Date().toLocaleDateString('de-DE'),14,20);
+  doc.setTextColor(30,30,30);
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(name,14,42);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text('Gesamt: '+totalH.toFixed(1)+' Stunden · '+rr.length+' Rapporte',14,50);
+  doc.setDrawColor(245,158,11);doc.setLineWidth(.5);doc.line(14,56,196,56);
+  // Tabelle
+  doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text('Datum',14,64);doc.text('Projekt',50,64);doc.text('Leistung',120,64);doc.text('Std.',196,64,{align:'right'});
+  doc.setDrawColor(200,200,200);doc.line(14,67,196,67);
+  doc.setFont('helvetica','normal');
+  let y=73;
+  rr.forEach(r=>{
+    if(y>270){doc.addPage();y=20;}
+    doc.text(r.datum,14,y);
+    doc.text((r.musa_projekte?.name||'—').substring(0,30),50,y);
+    doc.text(r.leistung.substring(0,20),120,y);
+    doc.text(r.stunden.toFixed(1),196,y,{align:'right'});
+    y+=7;
+  });
+  doc.line(14,y,196,y);y+=7;
+  doc.setFont('helvetica','bold');
+  doc.text('Gesamt:',140,y);doc.text(totalH.toFixed(1)+' Std.',196,y,{align:'right'});
+  doc.save('Auswertung_'+name.replace(' ','_')+'.pdf');
 }
 
 async function rSt(id,st){await db.from('musa_rechnungen').update({status:st}).eq('id',id);showOk('Aktualisiert.');renderRech();}
