@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BauDesk — Digitales Baustellen-Management für Elektrobetriebe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --stahl: #1C2331;
+  --stahl-light: #253045;
+  --rot: #E2001A;
+  --rot-dark: #b50015;
+  --silber: #8A9BB0;
+  --hell: #F8F9FA;
+  --weiss: #ffffff;
+  --rand: #2D3748;
+  --gruen: #22c55e;
+  --text: #CBD5E1;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--stahl);
+  color: var(--weiss);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 60px;
+  background: rgba(28,35,49,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.nav-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.02em;
+}
+
+.nav-badge {
+  background: var(--rot); color: white;
+  font-size: 11px; font-weight: 800; padding: 3px 8px;
+  border-radius: 4px; letter-spacing: 0.1em;
+}
+
+.nav-links { display: flex; align-items: center; gap: 24px; }
+.nav-links a {
+  font-size: 13px; color: var(--silber); text-decoration: none;
+  font-weight: 500; transition: color 0.15s;
+}
+.nav-links a:hover { color: white; }
+
+.btn-nav {
+  padding: 8px 18px; background: var(--rot); color: white;
+  border: none; border-radius: 6px; font-size: 13px; font-weight: 700;
+  cursor: pointer; text-decoration: none; transition: background 0.15s;
+  font-family: 'Inter', sans-serif;
+}
+.btn-nav:hover { background: var(--rot-dark); }
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh; padding: 120px 24px 80px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center;
+  position: relative; overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(226,0,26,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(226,0,26,0.12); border: 1px solid rgba(226,0,26,0.3);
+  color: #ff6b7a; font-size: 12px; font-weight: 700;
+  padding: 5px 14px; border-radius: 20px; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 28px;
+}
+
+.hero-eyebrow span { width: 6px; height: 6px; background: var(--rot); border-radius: 50%; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(1.4);} }
+
+.hero-title {
+  font-size: clamp(36px, 7vw, 80px);
+  font-weight: 900; line-height: 1.05;
+  letter-spacing: -0.03em;
+  max-width: 900px; margin: 0 auto 24px;
+}
+
+.hero-title .rot { color: var(--rot); }
+
+.hero-sub {
+  font-size: clamp(16px, 2.5vw, 20px);
+  color: var(--silber); max-width: 580px;
+  margin: 0 auto 48px; font-weight: 400; line-height: 1.6;
+}
+
+.hero-cta {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  margin-bottom: 72px;
+}
+
+.btn-primary {
+  padding: 16px 32px; background: var(--rot); color: white;
+  border: none; border-radius: 8px; font-size: 16px; font-weight: 700;
+  cursor: pointer; font-family: 'Inter', sans-serif;
+  text-decoration: none; display: inline-block;
+  transition: all 0.15s; box-shadow: 0 4px 24px rgba(226,0,26,0.35);
+}
+.btn-primary:hover { background: var(--rot-dark); transform: translateY(-1px); box-shadow: 0 8px 32px rgba(226,0,26,0.45); }
+
+.btn-ghost {
+  padding: 16px 32px; background: transparent; color: white;
+  border: 1.5px solid rgba(255,255,255,0.2); border-radius: 8px;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  font-family: 'Inter', sans-serif; text-decoration: none;
+  display: inline-block; transition: all 0.15s;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); }
+
+/* ── LIVE DEMO CARD ── */
+.demo-card {
+  background: var(--stahl-light);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 20px;
+  max-width: 420px; width: 100%;
+  margin: 0 auto;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  text-align: left;
+  position: relative;
+}
+
+.demo-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.demo-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--silber); }
+.demo-live { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gruen); font-weight: 700; }
+.demo-live-dot { width: 6px; height: 6px; background: var(--gruen); border-radius: 50%; animation: pulse 1.5s infinite; }
+
+.demo-field { margin-bottom: 12px; }
+.demo-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--silber); margin-bottom: 5px; }
+.demo-value {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 7px; padding: 10px 12px; font-size: 13px; color: white;
+  min-height: 38px; position: relative;
+}
+.demo-value.typing::after { content: '|'; animation: blink 0.8s infinite; color: var(--rot); font-weight: 700; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+.demo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-chip {
+  padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1); color: var(--silber);
+}
+.demo-chip.active { background: var(--rot); border-color: var(--rot); color: white; }
+
+.demo-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.demo-stunden { font-size: 22px; font-weight: 900; color: white; }
+.demo-stunden-label { font-size: 10px; color: var(--silber); }
+.demo-send {
+  padding: 9px 18px; background: var(--rot); color: white;
+  border: none; border-radius: 7px; font-size: 12px; font-weight: 700;
+  cursor: default;
+}
+
+/* ── SCHMERZ-ZAHLEN ── */
+.pain-section {
+  padding: 80px 24px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.pain-inner { max-width: 960px; margin: 0 auto; }
+
+.pain-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--rot); margin-bottom: 48px;
+  text-align: center;
+}
+
+.pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+
+@media(max-width:600px){ .pain-grid { grid-template-columns: 1fr; } }
+
+.pain-item {
+  text-align: center; padding: 40px 24px;
+  background: var(--stahl-light);
+  position: relative;
+}
+.pain-item:first-child { border-radius: 12px 0 0 12px; }
+.pain-item:last-child { border-radius: 0 12px 12px 0; }
+@media(max-width:600px){
+  .pain-item:first-child{border-radius:12px 12px 0 0;}
+  .pain-item:last-child{border-radius:0 0 12px 12px;}
+}
+
+.pain-zahl {
+  font-size: 64px; font-weight: 900; line-height: 1;
+  color: var(--rot); letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pain-einheit { font-size: 18px; font-weight: 700; color: var(--rot); }
+.pain-text { font-size: 14px; color: var(--silber); margin-top: 8px; line-height: 1.5; }
+.pain-text strong { color: white; }
+
+/* ── FEATURES ── */
+.features-section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
+
+.section-eyebrow {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--rot); margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: clamp(28px, 4vw, 44px); font-weight: 900;
+  letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 16px;
+}
+
+.section-sub { font-size: 17px; color: var(--silber); max-width: 520px; margin-bottom: 60px; }
+
+.feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media(max-width:700px){ .feature-grid { grid-template-columns: 1fr; } }
+
+.feature-card {
+  background: var(--stahl-light);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 28px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.feature-card:hover { border-color: rgba(226,0,26,0.3); transform: translateY(-2px); }
+
+.feature-icon { font-size: 28px; margin-bottom: 14px; }
+.feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.feature-text { font-size: 14px; color: var(--silber); line-height: 1.6; }
+
+.feature-card.highlight {
+  background: linear-gradient(135deg, rgba(226,0,26,0.15) 0%, rgba(226,0,26,0.05) 100%);
+  border-color: rgba(226,0,26,0.25);
+  grid-column: span 2;
+}
+@media(max-width:700px){ .feature-card.highlight { grid-column: span 1; } }
+
+.feature-card.highlight .feature-title { font-size: 20px; }
+
+/* ── WORKFLOW ── */
+.workflow-section {
+  padding: 100px 24px;
+  background: var(--stahl-light);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.workflow-inner { max-width: 960px; margin: 0 auto; }
+
+.workflow-steps {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0; margin-top: 60px; position: relative;
+}
+@media(max-width:700px){ .workflow-steps { grid-template-columns: 1fr; gap: 16px; } }
+
+.workflow-step { padding: 28px 20px; position: relative; text-align: center; }
+
+.workflow-step::after {
+  content: '→';
+  position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
+  font-size: 20px; color: rgba(226,0,26,0.4);
+}
+.workflow-step:last-child::after { display: none; }
+@media(max-width:700px){ .workflow-step::after { display: none; } }
+
+.workflow-nr {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(226,0,26,0.15); border: 1px solid rgba(226,0,26,0.3);
+  color: var(--rot); font-size: 14px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+}
+.workflow-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.workflow-text { font-size: 12px; color: var(--silber); line-height: 1.5; }
+
+/* ── REFERENZ ── */
+.referenz-section { padding: 100px 24px; max-width: 900px; margin: 0 auto; text-align: center; }
+
+.referenz-card {
+  background: var(--stahl-light);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 48px;
+  position: relative; overflow: hidden;
+}
+
+.referenz-card::before {
+  content: '"';
+  position: absolute; top: -20px; left: 32px;
+  font-size: 160px; font-weight: 900; color: rgba(226,0,26,0.08);
+  line-height: 1; font-family: Georgia, serif;
+}
+
+.referenz-text {
+  font-size: clamp(18px, 3vw, 24px); font-weight: 600;
+  line-height: 1.5; color: white; margin-bottom: 32px;
+  position: relative;
+}
+
+.referenz-person {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+
+.referenz-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--rot); display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800; color: white; flex-shrink: 0;
+}
+
+.referenz-name { font-size: 15px; font-weight: 700; text-align: left; }
+.referenz-firma { font-size: 13px; color: var(--silber); }
+
+.referenz-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 2px; margin-top: 40px; border-radius: 10px; overflow: hidden;
+}
+@media(max-width:500px){ .referenz-stats { grid-template-columns: 1fr; } }
+
+.referenz-stat {
+  background: rgba(0,0,0,0.2); padding: 20px;
+  text-align: center;
+}
+.referenz-stat-val { font-size: 28px; font-weight: 900; color: var(--rot); }
+.referenz-stat-lbl { font-size: 11px; color: var(--silber); margin-top: 4px; }
+
+/* ── PRICING ── */
+.pricing-section {
+  padding: 100px 24px;
+  background: var(--stahl-light);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.pricing-inner { max-width: 860px; margin: 0 auto; }
+
+.pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 56px; }
+@media(max-width:640px){ .pricing-grid { grid-template-columns: 1fr; } }
+
+.pricing-card {
+  background: var(--stahl); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 36px;
+}
+
+.pricing-card.featured {
+  background: linear-gradient(135deg, #1a0a0d 0%, #250d10 100%);
+  border-color: rgba(226,0,26,0.4);
+  position: relative; overflow: hidden;
+}
+
+.pricing-card.featured::before {
+  content: 'EMPFOHLEN';
+  position: absolute; top: 20px; right: -28px;
+  background: var(--rot); color: white;
+  font-size: 10px; font-weight: 800; padding: 4px 40px;
+  letter-spacing: 0.1em; transform: rotate(45deg);
+}
+
+.pricing-plan { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--silber); margin-bottom: 12px; }
+.pricing-price { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -0.02em; }
+.pricing-price sup { font-size: 20px; font-weight: 700; vertical-align: super; }
+.pricing-price sub { font-size: 14px; font-weight: 500; color: var(--silber); }
+.pricing-desc { font-size: 14px; color: var(--silber); margin: 12px 0 28px; line-height: 1.5; }
+
+.pricing-features { list-style: none; margin-bottom: 32px; }
+.pricing-features li {
+  font-size: 14px; color: var(--text); padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.pricing-features li:last-child { border-bottom: none; }
+.pricing-features li .check { color: var(--gruen); flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+
+.btn-pricing {
+  width: 100%; padding: 14px; border-radius: 8px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: 'Inter', sans-serif; text-align: center;
+  text-decoration: none; display: block; transition: all 0.15s;
+}
+.btn-pricing-ghost { background: transparent; color: white; border: 1.5px solid rgba(255,255,255,0.2); }
+.btn-pricing-ghost:hover { border-color: white; }
+.btn-pricing-red { background: var(--rot); color: white; border: none; box-shadow: 0 4px 20px rgba(226,0,26,0.3); }
+.btn-pricing-red:hover { background: var(--rot-dark); }
+
+.pricing-note { text-align: center; font-size: 13px; color: var(--silber); margin-top: 28px; }
+
+/* ── FAQ ── */
+.faq-section { padding: 100px 24px; max-width: 700px; margin: 0 auto; }
+
+.faq-item { border-bottom: 1px solid rgba(255,255,255,0.07); }
+.faq-q {
+  width: 100%; background: none; border: none; color: white;
+  font-size: 16px; font-weight: 600; text-align: left; padding: 22px 0;
+  cursor: pointer; display: flex; justify-content: space-between;
+  align-items: center; gap: 16px; font-family: 'Inter', sans-serif;
+}
+.faq-icon { color: var(--rot); font-size: 20px; flex-shrink: 0; transition: transform 0.2s; }
+.faq-a { font-size: 15px; color: var(--silber); line-height: 1.7; padding-bottom: 20px; display: none; }
+.faq-item.open .faq-a { display: block; }
+.faq-item.open .faq-icon { transform: rotate(45deg); }
+
+/* ── CTA FINAL ── */
+.cta-section {
+  padding: 120px 24px; text-align: center;
+  background: linear-gradient(180deg, var(--stahl) 0%, #12192A 100%);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.cta-title {
+  font-size: clamp(32px, 5vw, 56px); font-weight: 900;
+  letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px;
+}
+
+.cta-sub { font-size: 17px; color: var(--silber); margin-bottom: 48px; }
+
+/* ── FOOTER ── */
+footer {
+  padding: 32px 24px; border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+}
+.footer-logo { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.footer-copy { font-size: 12px; color: var(--silber); }
+
+/* ── SCROLL REVEAL ── */
+.reveal { opacity: 0; transform: translateY(24px); transition: all 0.6s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <span class="nav-badge">BAUD</span>
+    BauDesk
+  </div>
+  <div class="nav-links">
+    <a href="#features">Funktionen</a>
+    <a href="#pricing">Preise</a>
+    <a href="#faq">FAQ</a>
+    <a href="./index.html" class="btn-nav">Einloggen →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span></span>
+    Jetzt verfügbar für Elektrobetriebe
+  </div>
+  <h1 class="hero-title">
+    Schluss mit<br>
+    <span class="rot">Zetteln auf der Baustelle.</span>
+  </h1>
+  <p class="hero-sub">
+    BauDesk digitalisiert Rapport, Zeiterfassung und Abrechnung für Elektrohandwerksbetriebe — vom Handy des Monteurs bis zur Rechnung des Projektleiters.
+  </p>
+  <div class="hero-cta">
+    <a href="#pricing" class="btn-primary">Jetzt starten — ab 79 €/Monat</a>
+    <a href="#features" class="btn-ghost">Funktionen ansehen</a>
+  </div>
+
+  <!-- LIVE DEMO CARD -->
+  <div class="demo-card">
+    <div class="demo-card-header">
+      <div class="demo-card-title">📋 Rapport — Baustelle</div>
+      <div class="demo-live"><div class="demo-live-dot"></div>Live</div>
+    </div>
+    <div class="demo-field">
+      <div class="demo-label">Projekt</div>
+      <div class="demo-value" id="demo-projekt">Wohnanlage Kirchheim</div>
+    </div>
+    <div class="demo-field">
+      <div class="demo-label">Leistungsbereich</div>
+      <div class="demo-chips">
+        <div class="demo-chip active">⚡ Elektroinstallation</div>
+        <div class="demo-chip">🔒 Sicherheit</div>
+        <div class="demo-chip">☀️ PV</div>
+      </div>
+    </div>
+    <div class="demo-field">
+      <div class="demo-label">Tätigkeit</div>
+      <div class="demo-value typing" id="demo-text"></div>
+    </div>
+    <div class="demo-footer">
+      <div>
+        <div class="demo-stunden" id="demo-std">8.0</div>
+        <div class="demo-stunden-label">Std. heute</div>
+      </div>
+      <div class="demo-send">✅ Absenden</div>
+    </div>
+  </div>
+</section>
+
+<!-- SCHMERZ-ZAHLEN -->
+<section class="pain-section">
+  <div class="pain-inner">
+    <div class="pain-label">Die Realität im deutschen Elektrohandwerk</div>
+    <div class="pain-grid">
+      <div class="pain-item reveal">
+        <div class="pain-zahl">3<span class="pain-einheit">h</span></div>
+        <div class="pain-text">verliert ein Projektleiter <strong>pro Woche</strong> mit dem Übertragen von Handzetteln ins System</div>
+      </div>
+      <div class="pain-item reveal">
+        <div class="pain-zahl">23<span class="pain-einheit">%</span></div>
+        <div class="pain-text">der Rechnungen in Handwerksbetrieben werden <strong>zu spät oder unvollständig</strong> gestellt</div>
+      </div>
+      <div class="pain-item reveal">
+        <div class="pain-zahl">€ 0</div>
+        <div class="pain-text">verdient man an Projekten über die man <strong>keinen Überblick</strong> hat</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section" id="features">
+  <div class="section-eyebrow">Funktionen</div>
+  <h2 class="section-title">Alles was ein<br>Elektrobetrieb braucht.</h2>
+  <p class="section-sub">Kein kompliziertes ERP. Kein monatelanges Einrichten. In einem Tag einsatzbereit.</p>
+
+  <div class="feature-grid">
+    <div class="feature-card highlight reveal">
+      <div class="feature-icon">⏱</div>
+      <div class="feature-title">Digitale Stempeluhr + Rapport in einem</div>
+      <div class="feature-text">Monteur drückt KOMMEN auf dem Handy — BauDesk erfasst die Zeit. Beim GEHEN werden Stunden automatisch in den Tagesrapport übernommen. Kein Zettel, kein Nachtippen, kein Vergessen. Mit Foto-Upload direkt von der Baustelle.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Projektleiter-Dashboard</div>
+      <div class="feature-text">Alle Projekte auf einen Blick, gefiltert nach Leistungsbereich. Jeder eingegangene Rapport mit Foto, Mitarbeiter und Uhrzeit — live, ohne Anruf.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📈</div>
+      <div class="feature-title">Stundenauswertung pro Mitarbeiter</div>
+      <div class="feature-text">Wer hat diese Woche wieviel gearbeitet? Einsatztage, Ø Stunden pro Tag, Rapporte — sofort abrufbar. Basis für die spätere Gehaltsabrechnung.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📄</div>
+      <div class="feature-title">Rechnung per Knopfdruck</div>
+      <div class="feature-text">Aus erfassten Stunden wird in Sekunden eine Teil- oder Schlussrechnung als PDF — mit Firmenlogo, MwSt., Zahlungsziel. Status-Tracking: Entwurf → Gesendet → Bezahlt.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🔐</div>
+      <div class="feature-title">Sicherer Login ohne Passwort</div>
+      <div class="feature-text">Mitarbeiter loggen sich per E-Mail Code ein — kein Passwort das vergessen werden kann. Projektleiter und Monteure sehen nur was sie sehen dürfen.</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📱</div>
+      <div class="feature-title">Läuft auf jedem Handy</div>
+      <div class="feature-text">Keine App-Installation. Browser aufmachen, URL eintippen — fertig. iOS, Android, Tablet. Auch auf dem alten Samsung des Lehrlings.</div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW -->
+<section class="workflow-section">
+  <div class="workflow-inner">
+    <div class="section-eyebrow">So einfach geht's</div>
+    <h2 class="section-title reveal">Vom Kommen bis zur Rechnung.</h2>
+    <div class="workflow-steps">
+      <div class="workflow-step reveal">
+        <div class="workflow-nr">1</div>
+        <div class="workflow-title">Einstempeln</div>
+        <div class="workflow-text">Monteur drückt KOMMEN, wählt Projekt — Zeit läuft.</div>
+      </div>
+      <div class="workflow-step reveal">
+        <div class="workflow-nr">2</div>
+        <div class="workflow-title">Rapport senden</div>
+        <div class="workflow-text">Beim GEHEN: Beschreibung + Foto — Stunden automatisch übernommen.</div>
+      </div>
+      <div class="workflow-step reveal">
+        <div class="workflow-nr">3</div>
+        <div class="workflow-title">PL sieht alles</div>
+        <div class="workflow-text">Dashboard zeigt alle Rapporte live — kein Anruf, kein Zettel.</div>
+      </div>
+      <div class="workflow-step reveal">
+        <div class="workflow-nr">4</div>
+        <div class="workflow-title">Rechnung raus</div>
+        <div class="workflow-text">Stunden → PDF-Rechnung in 30 Sekunden. Fertig.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REFERENZ -->
+<section class="referenz-section reveal">
+  <div class="section-eyebrow" style="text-align:center;margin-bottom:40px;">Referenz</div>
+  <div class="referenz-card">
+    <p class="referenz-text">
+      „Wir haben den Rapport-Zettel seit 30 Jahren. BauDesk hat uns gezeigt dass es auch anders geht — und zwar so, dass die Monteure es wirklich nutzen."
+    </p>
+    <div class="referenz-person">
+      <div class="referenz-avatar">M</div>
+      <div>
+        <div class="referenz-name">Projektleiter</div>
+        <div class="referenz-firma">MUSA Elektrotechnik GmbH, Wendlingen · ~90 Mitarbeiter</div>
+      </div>
+    </div>
+    <div class="referenz-stats">
+      <div class="referenz-stat">
+        <div class="referenz-stat-val">90</div>
+        <div class="referenz-stat-lbl">Mitarbeiter</div>
+      </div>
+      <div class="referenz-stat">
+        <div class="referenz-stat-val">8</div>
+        <div class="referenz-stat-lbl">Leistungsbereiche</div>
+      </div>
+      <div class="referenz-stat">
+        <div class="referenz-stat-val">seit 1982</div>
+        <div class="referenz-stat-lbl">Erfahrung</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="pricing-inner">
+    <div class="section-eyebrow" style="text-align:center;">Preise</div>
+    <h2 class="section-title reveal" style="text-align:center;">Transparent.<br>Keine Überraschungen.</h2>
+    <div class="pricing-grid">
+      <div class="pricing-card reveal">
+        <div class="pricing-plan">Starter</div>
+        <div class="pricing-price"><sup>€</sup>1.500 <sub>einmalig</sub></div>
+        <div class="pricing-desc">Setup, Einrichtung und Schulung. Ihr Betrieb, Ihre Mitarbeiter, Ihre Projekte — fertig konfiguriert.</div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> Einrichtung aller Mitarbeiter & Projekte</li>
+          <li><span class="check">✓</span> Schulung Projektleiter (1h)</li>
+          <li><span class="check">✓</span> CI-Anpassung (Logo, Farben)</li>
+          <li><span class="check">✓</span> 30 Tage Support</li>
+        </ul>
+        <a href="mailto:info@riedel-classics.de?subject=BauDesk Anfrage" class="btn-pricing btn-pricing-ghost">Anfragen</a>
+      </div>
+      <div class="pricing-card featured reveal">
+        <div class="pricing-plan">Monatlich</div>
+        <div class="pricing-price"><sup>€</sup>79 <sub>/ Monat</sub></div>
+        <div class="pricing-desc">Hosting, Updates und Weiterentwicklung. Kündbar monatlich.</div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> Unbegrenzte Mitarbeiter & Projekte</li>
+          <li><span class="check">✓</span> Stempeluhr + Rapport + Dashboard</li>
+          <li><span class="check">✓</span> Auswertung & PDF-Rechnungen</li>
+          <li><span class="check">✓</span> WhatsApp-Benachrichtigungen</li>
+          <li><span class="check">✓</span> Laufende Updates</li>
+          <li><span class="check">✓</span> DATEV-Export (Q3 2025)</li>
+          <li><span class="check">✓</span> Persönlicher Support</li>
+        </ul>
+        <a href="mailto:info@riedel-classics.de?subject=BauDesk Anfrage" class="btn-pricing btn-pricing-red">Jetzt anfragen</a>
+      </div>
+    </div>
+    <div class="pricing-note">Alle Preise zzgl. MwSt. · Keine versteckten Kosten · Hosting inklusive</div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section" id="faq">
+  <div class="section-eyebrow" style="text-align:center;margin-bottom:40px;">Häufige Fragen</div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Brauchen unsere Monteure eine App installieren?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a">Nein. BauDesk läuft im Browser — auf jedem Handy, Tablet oder PC. Kein App Store, kein Update, keine Installation. URL aufrufen, fertig.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Was wenn ein Monteur kein Smartphone hat?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a">BauDesk läuft auf jedem Handy mit Browser — auch auf einfachen Android-Geräten. Für die Stempeluhr reicht ein Smartphone unter 100 €.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Wie lange dauert die Einrichtung?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a">Wir richten alles für Sie ein — Mitarbeiter, Projekte, Leistungsbereiche. In der Regel ist Ihr Betrieb innerhalb eines Tages startklar.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Können wir BauDesk vor dem Kauf testen?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a">Ja. Wir richten eine Demo-Umgebung mit Ihren echten Projekten und Mitarbeitern ein — kostenlos, unverbindlich, 14 Tage.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Was passiert mit unseren Daten?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a">Alle Daten werden in der EU gespeichert (Frankfurt). DSGVO-konform. Sie behalten jederzeit die volle Kontrolle über Ihre Daten — Export jederzeit möglich.</div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-section">
+  <h2 class="cta-title reveal">Bereit für den<br><span style="color:var(--rot);">digitalen Rapport?</span></h2>
+  <p class="cta-sub reveal">Kein Risiko. Kostenlose Demo. In einem Tag startklar.</p>
+  <div class="hero-cta">
+    <a href="mailto:info@riedel-classics.de?subject=BauDesk Demo anfragen" class="btn-primary">Demo anfragen</a>
+    <a href="./index.html" class="btn-ghost">Direkt einloggen</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <span class="nav-badge" style="font-size:10px;">BAUD</span>
+    BauDesk
+  </div>
+  <div class="footer-copy">© 2025 Riedel Classics · Ein Produkt aus Wernau · Alle Rechte vorbehalten</div>
+</footer>
+
+<script>
+// ── DEMO ANIMATION ──
+const texte = [
+  'Kabelverlegung EG abgeschlossen, 3 Unterverteilungen verdrahtet',
+  'Brandmeldeanlage Melder OG gesetzt, Leitungen 80% fertig',
+  'Schaltschrankbau HV: Hauptverteilung verdrahtet und geprüft',
+  'PV-Anlage Wechselrichter montiert, DC-Verkabelung fertig',
+];
+let tIdx = 0, cIdx = 0, deleting = false;
+const el = document.getElementById('demo-text');
+
+function typeDemo() {
+  const text = texte[tIdx];
+  if (!deleting) {
+    el.textContent = text.slice(0, ++cIdx);
+    if (cIdx === text.length) { deleting = true; setTimeout(typeDemo, 2200); return; }
+    setTimeout(typeDemo, 38);
+  } else {
+    el.textContent = text.slice(0, --cIdx);
+    if (cIdx === 0) { deleting = false; tIdx = (tIdx + 1) % texte.length; setTimeout(typeDemo, 400); return; }
+    setTimeout(typeDemo, 18);
+  }
+}
+setTimeout(typeDemo, 800);
+
+// ── SCROLL REVEAL ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── FAQ ──
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+</script>
+</body>
+</html>
