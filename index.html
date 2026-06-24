@@ -763,30 +763,39 @@ async function stempelGehen(){
   document.getElementById('rdat').value=jetzt.toISOString().split('T')[0];
   document.getElementById('rstdh').style.display='block';
   stUIAus();
-  showOk('✅ Ausgestempelt!');
+  showOk('✅ Ausgestempelt — Rapport vorausgefüllt!');
   ladeHist();
-  setTimeout(()=>showTab('rapport'),1200);
 }
 
 async function ladeHist(){
   if(!MA)return;
   const heute=new Date().toISOString().split('T')[0];
+  // Stempel laden
   const {data}=await db.from('musa_stempeluhr').select('*,musa_projekte(name,id)').eq('mitarbeiter_id',MA.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(8);
   const el=document.getElementById('shist');
   if(!data||!data.length){el.innerHTML='<div class="empty"><div class="ei">⏳</div>Noch keine Einträge</div>';document.getElementById('sheute').textContent='0.0h heute';return;}
+  // Tagesstunden
   const todayH=data.filter(r=>r.gestempelt_ein.startsWith(heute)).reduce((s,r)=>{const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);return s+((a-e)/3600000);},0);
   document.getElementById('sheute').textContent=todayH.toFixed(1)+'h heute';
+  // Rapporte des Mitarbeiters laden um Abgleich zu machen
+  const {data:rr}=await db.from('musa_rapporte').select('datum,projekt_id').eq('mitarbeiter_id',MA.id).gte('datum',data[data.length-1].gestempelt_ein.split('T')[0]);
+  const rapportKeys=new Set((rr||[]).map(r=>r.datum+'_'+r.projekt_id));
   el.innerHTML=data.map(r=>{
     const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);
     const std=((a-e)/3600000).toFixed(1);
     const dat=e.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const datISO=r.gestempelt_ein.split('T')[0];
     const zt=e.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' – '+a.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const pn=r.musa_projekte?.name||'—';
     const pid=r.musa_projekte?.id||'';
-    const isH=r.gestempelt_ein.startsWith(heute);
-    return `<div class="hist-row" onclick="rapportVonStempel('${pid}','${r.gestempelt_ein.split('T')[0]}','${std}')">
+    // Prüfen ob für diesen Tag+Projekt schon ein Rapport existiert
+    const hatRapport=rapportKeys.has(datISO+'_'+pid);
+    const badge=hatRapport
+      ? '<div class="hist-badge" style="background:rgba(34,197,94,.12);color:#22C55E;border-color:rgba(34,197,94,.3);">✅ Rapport</div>'
+      : '<div class="hist-badge" style="background:rgba(239,68,68,.12);color:#EF4444;border-color:rgba(239,68,68,.3);">🔴 Offen</div>';
+    return `<div class="hist-row" onclick="rapportVonStempel('${pid}','${datISO}','${std}')">
       <div><div class="hist-pn">${pn}</div><div class="hist-m">${dat} · ${zt}</div></div>
-      <div class="hist-r"><div class="hist-h">${std}h</div>${isH?'<div class="hist-badge">📋 Rapport</div>':''}</div>
+      <div class="hist-r"><div class="hist-h">${std}h</div>${badge}</div>
     </div>`;
   }).join('');
 }
