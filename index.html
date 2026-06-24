@@ -2,754 +2,1389 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BauDesk — Digitales Baustellen-Management für Elektrobetriebe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BauDesk</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
-  --stahl: #1C2331;
-  --stahl-light: #253045;
-  --rot: #E2001A;
-  --rot-dark: #b50015;
-  --silber: #8A9BB0;
-  --hell: #F8F9FA;
-  --weiss: #ffffff;
-  --rand: #2D3748;
-  --gruen: #22c55e;
-  --text: #CBD5E1;
+  --kohle: #18181B;
+  --kohle2: #232329;
+  --kohle3: #2E2E36;
+  --amber: #F59E0B;
+  --amber-light: #FCD34D;
+  --amber-dark: #D97706;
+  --weiss: #FFFFFF;
+  --grau: #A1A1AA;
+  --rand: #3F3F46;
+  --hell: #F4F4F5;
+  --gruen: #22C55E;
+  --rot: #EF4444;
+  --blau: #3B82F6;
+  --text: #E4E4E7;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--stahl);
+  background: var(--kohle);
   color: var(--weiss);
-  line-height: 1.6;
+  min-height: 100vh;
   overflow-x: hidden;
 }
 
-/* ── NAV ── */
-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px; height: 60px;
-  background: rgba(28,35,49,0.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+/* ══════════════════════════════
+   LOGIN
+══════════════════════════════ */
+#login-screen {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100vh; padding: 24px;
+  background: var(--kohle);
 }
 
-.nav-logo {
+.login-mark {
+  margin-bottom: 40px; text-align: center;
+}
+
+/* SVG Logo — Zirkelzeichen */
+.login-mark svg { display: block; margin: 0 auto 14px; }
+
+.login-mark-name {
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--weiss);
+}
+
+.login-mark-sub {
+  font-size: 12px; color: var(--grau);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.login-card {
+  background: var(--kohle2);
+  border: 1px solid var(--rand);
+  border-radius: 20px; padding: 28px 24px;
+  width: 100%; max-width: 340px;
+}
+
+.login-err {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #FCA5A5; font-size: 13px;
+  padding: 10px 14px; border-radius: 10px;
+  margin-bottom: 16px; display: none;
+}
+
+.lf { margin-bottom: 14px; }
+.lf label {
+  display: block; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--grau); margin-bottom: 7px;
+}
+
+.lf select, .lf input {
+  width: 100%; padding: 13px 14px;
+  background: var(--kohle3); border: 1px solid var(--rand);
+  border-radius: 10px; font-size: 15px; color: var(--weiss);
+  font-family: 'Inter', sans-serif;
+  appearance: none; -webkit-appearance: none;
+}
+.lf select:focus, .lf input:focus {
+  outline: none; border-color: var(--amber);
+}
+.lf select option { background: var(--kohle3); }
+
+.pin-input {
+  font-size: 26px !important; letter-spacing: 0.5em !important;
+  text-align: center !important; font-weight: 700 !important;
+}
+
+.btn-login {
+  width: 100%; padding: 15px;
+  background: var(--amber); color: var(--kohle);
+  border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 800;
+  cursor: pointer; font-family: 'Inter', sans-serif;
+  margin-top: 6px; letter-spacing: -0.01em;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-login:hover { background: var(--amber-light); }
+.btn-login:active { transform: scale(0.98); }
+.btn-login:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
+
+.login-hint {
+  font-size: 11px; color: var(--grau);
+  text-align: center; margin-top: 16px; line-height: 1.7;
+}
+.login-hint b { color: var(--amber); }
+
+/* ══════════════════════════════
+   APP SHELL
+══════════════════════════════ */
+#app { display: none; min-height: 100vh; }
+
+/* Header */
+.app-header {
+  background: var(--kohle2);
+  border-bottom: 1px solid var(--rand);
+  padding: 0 16px; height: 54px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+
+.app-logo {
   display: flex; align-items: center; gap: 10px;
-  font-size: 15px; font-weight: 700; letter-spacing: 0.02em;
+}
+.app-logo svg { flex-shrink: 0; }
+.app-logo-name { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+
+.app-user {
+  display: flex; flex-direction: column; align-items: flex-end;
+  cursor: pointer;
+}
+.app-user-name { font-size: 13px; font-weight: 700; color: var(--weiss); }
+.app-user-rolle {
+  font-size: 10px; font-weight: 600; color: var(--amber);
+  text-transform: uppercase; letter-spacing: 0.08em;
 }
 
-.nav-badge {
-  background: var(--rot); color: white;
-  font-size: 11px; font-weight: 800; padding: 3px 8px;
-  border-radius: 4px; letter-spacing: 0.1em;
+/* ══════════════════════════════
+   HOME SCREEN (Monteur Einstieg)
+══════════════════════════════ */
+#screen-home {
+  display: flex; flex-direction: column;
+  min-height: calc(100vh - 54px);
+  padding: 28px 20px 40px;
 }
 
-.nav-links { display: flex; align-items: center; gap: 24px; }
-.nav-links a {
-  font-size: 13px; color: var(--silber); text-decoration: none;
-  font-weight: 500; transition: color 0.15s;
+.home-greet {
+  margin-bottom: 36px;
 }
-.nav-links a:hover { color: white; }
+.home-greet-sub {
+  font-size: 12px; font-weight: 600; color: var(--amber);
+  text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+}
+.home-greet-name {
+  font-size: 30px; font-weight: 900; letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.home-greet-date {
+  font-size: 13px; color: var(--grau); margin-top: 4px;
+}
 
-.btn-nav {
-  padding: 8px 18px; background: var(--rot); color: white;
-  border: none; border-radius: 6px; font-size: 13px; font-weight: 700;
-  cursor: pointer; text-decoration: none; transition: background 0.15s;
+/* Stempel-Status Banner */
+.stempel-banner {
+  border-radius: 14px; padding: 16px 18px;
+  margin-bottom: 28px;
+  display: flex; align-items: center; gap: 14px;
+  border: 1px solid var(--rand);
+  background: var(--kohle2);
+}
+.stempel-banner.aktiv {
+  background: rgba(34,197,94,0.08);
+  border-color: rgba(34,197,94,0.25);
+}
+.stempel-banner-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--grau); flex-shrink: 0;
+}
+.stempel-banner.aktiv .stempel-banner-dot {
+  background: var(--gruen);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.2);
+  animation: puls 2s infinite;
+}
+@keyframes puls { 0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,0.2);} 50%{box-shadow:0 0 0 6px rgba(34,197,94,0.1);} }
+.stempel-banner-text { flex: 1; }
+.stempel-banner-label { font-size: 12px; color: var(--grau); font-weight: 500; }
+.stempel-banner-info { font-size: 14px; font-weight: 700; color: var(--weiss); margin-top: 1px; }
+.stempel-banner-timer { font-size: 16px; font-weight: 800; color: var(--gruen); font-variant-numeric: tabular-nums; }
+
+/* Home Action Buttons */
+.home-actions { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+
+.action-btn {
+  display: flex; align-items: center; gap: 18px;
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 16px; padding: 22px 20px;
+  cursor: pointer; transition: all 0.15s;
+  text-align: left; width: 100%;
+  font-family: 'Inter', sans-serif;
+  text-decoration: none; color: var(--weiss);
+  position: relative; overflow: hidden;
+}
+.action-btn:active { transform: scale(0.98); }
+.action-btn:hover { border-color: var(--amber); }
+
+.action-btn.primary {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--kohle);
+}
+.action-btn.primary:hover { background: var(--amber-light); border-color: var(--amber-light); }
+
+.action-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0;
+  background: rgba(255,255,255,0.08);
+}
+.action-btn.primary .action-icon { background: rgba(0,0,0,0.12); }
+
+.action-text { flex: 1; }
+.action-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.action-sub { font-size: 12px; opacity: 0.65; margin-top: 2px; font-weight: 500; }
+
+.action-arrow { font-size: 20px; opacity: 0.4; }
+
+/* PL-Badge auf Dashboard Button */
+.pl-badge {
+  position: absolute; top: 12px; right: 14px;
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--amber);
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.25);
+  padding: 2px 7px; border-radius: 20px;
+}
+
+/* ══════════════════════════════
+   SCREENS (Stempel / Rapport / Dashboard / Auswertung / Rechnungen)
+══════════════════════════════ */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* Back Button */
+.screen-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px 0; margin-bottom: 4px;
+}
+.btn-back {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--kohle2); border: 1px solid var(--rand);
+  color: var(--weiss); font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.screen-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+
+/* ══════════════════════════════
+   STEMPELUHR SCREEN
+══════════════════════════════ */
+.stempel-wrap { padding: 16px; }
+
+.uhr-card {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 20px; overflow: hidden; margin-bottom: 16px;
+}
+
+.uhr-face {
+  background: var(--kohle3); padding: 32px 20px 28px;
+  text-align: center;
+}
+.uhr-zeit {
+  font-size: 56px; font-weight: 900; line-height: 1;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  color: var(--weiss);
+}
+.uhr-datum { font-size: 13px; color: var(--grau); margin-top: 6px; font-weight: 500; }
+.uhr-laufzeit {
+  font-size: 18px; font-weight: 800; color: var(--gruen);
+  margin-top: 10px; font-variant-numeric: tabular-nums;
+  min-height: 26px;
+}
+
+.uhr-body { padding: 16px; }
+
+.uhr-status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; margin-bottom: 14px;
+  padding: 8px 12px; border-radius: 8px; background: var(--kohle3);
+}
+.uhr-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grau); flex-shrink: 0; }
+.uhr-status.ein .uhr-status-dot { background: var(--gruen); animation: puls 2s infinite; }
+.uhr-status.ein { color: var(--gruen); }
+.uhr-status.aus { color: var(--grau); }
+
+.uhr-projekt { margin-bottom: 14px; }
+
+.uhr-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+
+.btn-kommen {
+  padding: 18px; background: var(--gruen); color: var(--kohle);
+  border: none; border-radius: 12px; font-size: 15px; font-weight: 800;
+  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
+}
+.btn-kommen:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
+
+.btn-gehen {
+  padding: 18px; background: var(--rot); color: white;
+  border: none; border-radius: 12px; font-size: 15px; font-weight: 800;
+  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
+}
+.btn-gehen:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
+
+/* History */
+.history-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--grau); margin-bottom: 10px; padding: 0 16px; }
+.history-list { padding: 0 16px 20px; }
+.history-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 0; border-bottom: 1px solid var(--rand); font-size: 13px;
+}
+.history-row:last-child { border-bottom: none; }
+.history-projekt { font-weight: 600; color: var(--weiss); }
+.history-meta { font-size: 11px; color: var(--grau); margin-top: 1px; }
+.history-std { font-weight: 800; color: var(--amber); font-size: 15px; }
+
+/* ══════════════════════════════
+   RAPPORT SCREEN
+══════════════════════════════ */
+.rapport-wrap { padding: 16px 16px 60px; max-width: 560px; margin: 0 auto; }
+
+.field-group { margin-bottom: 18px; }
+.field-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--grau); margin-bottom: 8px;
+  display: block;
+}
+
+.field-select, .field-input, .field-textarea {
+  width: 100%; padding: 13px 14px;
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 12px; font-size: 15px; color: var(--weiss);
+  font-family: 'Inter', sans-serif;
+  appearance: none; -webkit-appearance: none;
+}
+.field-select:focus, .field-input:focus, .field-textarea:focus {
+  outline: none; border-color: var(--amber);
+}
+.field-select option { background: var(--kohle2); }
+.field-textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+
+.chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.chip {
+  padding: 11px 8px; background: var(--kohle2);
+  border: 1px solid var(--rand); border-radius: 10px;
+  font-size: 12px; font-weight: 600; color: var(--grau);
+  cursor: pointer; text-align: center;
+  transition: all 0.15s; user-select: none;
+}
+.chip.selected { background: var(--amber); border-color: var(--amber); color: var(--kohle); font-weight: 800; }
+
+.zeit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stunden-from-stempel { font-size: 11px; color: var(--gruen); font-weight: 600; margin-top: 5px; }
+
+.foto-zone {
+  border: 2px dashed var(--rand); border-radius: 12px;
+  background: var(--kohle2); text-align: center; padding: 24px 16px;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.foto-zone:hover { border-color: var(--amber); }
+.foto-zone input { display: none; }
+.foto-zone-icon { font-size: 28px; margin-bottom: 6px; }
+.foto-zone-text { font-size: 13px; color: var(--grau); }
+.foto-zone-sub { font-size: 11px; color: var(--amber); margin-top: 3px; font-weight: 600; }
+
+.foto-previews { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 10px; }
+.foto-thumb { aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--rand); width:100%; }
+
+.btn-senden {
+  width: 100%; padding: 17px; background: var(--amber); color: var(--kohle);
+  border: none; border-radius: 12px; font-size: 16px; font-weight: 800;
+  cursor: pointer; margin-top: 24px; font-family: 'Inter', sans-serif;
+  letter-spacing: -0.01em; transition: all 0.15s;
+}
+.btn-senden:hover { background: var(--amber-light); }
+.btn-senden:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
+
+/* ══════════════════════════════
+   DASHBOARD SCREEN
+══════════════════════════════ */
+.dashboard-wrap { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 20px; }
+@media(min-width:600px){ .kpi-grid { grid-template-columns: repeat(4,1fr); } }
+
+.kpi-card {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 14px; padding: 16px;
+}
+.kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--grau); margin-bottom: 6px; }
+.kpi-val { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; color: var(--weiss); }
+.kpi-val.amber { color: var(--amber); }
+
+.filter-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; scrollbar-width: none; }
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0; padding: 7px 14px;
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+  color: var(--grau); cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.filter-chip.active { background: var(--amber); border-color: var(--amber); color: var(--kohle); font-weight: 800; }
+
+.projekt-list { display: flex; flex-direction: column; gap: 10px; }
+.projekt-card {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 16px; overflow: hidden; transition: border-color 0.15s;
+}
+.projekt-card:hover { border-color: var(--amber); }
+
+.projekt-card-header {
+  padding: 16px; display: flex; align-items: center;
+  justify-content: space-between; gap: 10px; cursor: pointer;
+}
+.projekt-card-info { flex: 1; min-width: 0; }
+.projekt-card-name { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.projekt-card-meta { font-size: 12px; color: var(--grau); margin-top: 2px; }
+.projekt-card-tags { margin-top: 5px; }
+
+.tag {
+  display: inline-block; background: var(--kohle3);
+  border: 1px solid var(--rand); color: var(--grau);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+  margin-right: 4px; margin-top: 3px;
+}
+
+.status-pill {
+  flex-shrink: 0; padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.s-offen { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+.s-aktiv { background: rgba(59,130,246,0.12); color: var(--blau); border: 1px solid rgba(59,130,246,0.25); }
+.s-abnahme { background: rgba(34,197,94,0.12); color: var(--gruen); border: 1px solid rgba(34,197,94,0.25); }
+.s-abgerechnet { background: rgba(161,161,170,0.1); color: var(--grau); border: 1px solid var(--rand); }
+
+.toggle-arrow { font-size: 16px; color: var(--grau); transition: transform 0.2s; }
+.projekt-card.open .toggle-arrow { transform: rotate(180deg); }
+
+.projekt-card-footer {
+  padding: 10px 16px; border-top: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.projekt-stunden-val { font-size: 16px; font-weight: 800; color: var(--amber); }
+.projekt-stunden-lbl { font-size: 10px; color: var(--grau); font-weight: 600; text-transform: uppercase; }
+.btn-zu-rechnung {
+  padding: 7px 14px; background: var(--kohle3); color: var(--weiss);
+  border: 1px solid var(--rand); border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: all 0.15s;
+}
+.btn-zu-rechnung:hover { border-color: var(--amber); color: var(--amber); }
+
+.rapport-panel { display: none; border-top: 1px solid var(--rand); }
+.rapport-panel.open { display: block; }
+
+.rapport-item {
+  display: flex; gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid var(--rand); align-items: flex-start;
+}
+.rapport-item:last-child { border-bottom: none; }
+.rapport-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid var(--rand); flex-shrink: 0; }
+.rapport-no-thumb {
+  width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--rand);
+  flex-shrink: 0; background: var(--kohle3);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.rapport-body { flex: 1; min-width: 0; }
+.rapport-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.rapport-name { font-size: 13px; font-weight: 700; }
+.rapport-ts { font-size: 11px; color: var(--grau); white-space: nowrap; }
+.rapport-desc { font-size: 13px; color: var(--text); margin-top: 3px; line-height: 1.4; }
+.rapport-meta { font-size: 11px; color: var(--amber); font-weight: 700; margin-top: 4px; }
+
+.empty-panel { padding: 20px; text-align: center; font-size: 13px; color: var(--grau); }
+
+/* ══════════════════════════════
+   AUSWERTUNG SCREEN
+══════════════════════════════ */
+.auswertung-wrap { padding: 16px; max-width: 800px; margin: 0 auto; }
+
+.period-tabs { display: flex; background: var(--kohle2); border: 1px solid var(--rand); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 20px; }
+.period-tab {
+  flex: 1; padding: 9px; border: none; background: none;
+  color: var(--grau); font-size: 13px; font-weight: 600;
+  cursor: pointer; border-radius: 9px; font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+}
+.period-tab.active { background: var(--amber); color: var(--kohle); font-weight: 800; }
+
+.gesamt-karte {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 16px; padding: 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 16px;
+}
+.gesamt-val { font-size: 36px; font-weight: 900; color: var(--amber); letter-spacing: -0.02em; }
+.gesamt-lbl { font-size: 11px; color: var(--grau); text-transform: uppercase; letter-spacing: 0.08em; }
+.gesamt-count { text-align: right; }
+.gesamt-count-val { font-size: 28px; font-weight: 900; color: var(--weiss); }
+
+.ma-karte {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 14px; padding: 16px; margin-bottom: 10px;
+}
+.ma-karte-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.ma-karte-name { font-size: 15px; font-weight: 700; }
+.ma-karte-rolle {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--grau); background: var(--kohle3); border: 1px solid var(--rand);
+  padding: 2px 8px; border-radius: 4px; margin-top: 3px; display: inline-block;
+}
+.ma-karte-std { font-size: 28px; font-weight: 900; color: var(--amber); text-align: right; letter-spacing: -0.02em; }
+.ma-karte-std-lbl { font-size: 10px; color: var(--grau); text-align: right; }
+.bar-track { height: 6px; background: var(--kohle3); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+.bar-fill { height: 100%; background: var(--amber); border-radius: 3px; transition: width 0.8s ease; }
+.ma-karte-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.ma-stat { text-align: center; }
+.ma-stat-val { font-size: 17px; font-weight: 800; color: var(--weiss); }
+.ma-stat-lbl { font-size: 10px; color: var(--grau); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
+
+/* ══════════════════════════════
+   RECHNUNGEN SCREEN
+══════════════════════════════ */
+.rechnungen-wrap { padding: 16px; max-width: 800px; margin: 0 auto; }
+
+.btn-neu-rechnung {
+  width: 100%; padding: 14px; border: 2px dashed var(--rand);
+  border-radius: 12px; background: none; color: var(--grau);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: 'Inter', sans-serif; margin-bottom: 16px;
+  transition: all 0.15s;
+}
+.btn-neu-rechnung:hover { border-color: var(--amber); color: var(--amber); }
+
+.neu-form {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 14px; padding: 18px; margin-bottom: 16px; display: none;
+}
+.neu-form.open { display: block; }
+.neu-form-title { font-size: 14px; font-weight: 800; margin-bottom: 14px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.form-full { margin-bottom: 12px; }
+
+.r-card {
+  background: var(--kohle2); border: 1px solid var(--rand);
+  border-radius: 14px; padding: 16px; margin-bottom: 10px;
+}
+.r-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.r-nr { font-size: 14px; font-weight: 800; }
+.r-projekt { font-size: 13px; color: var(--grau); margin-top: 2px; }
+.r-betrag { font-size: 22px; font-weight: 900; color: var(--amber); text-align: right; letter-spacing: -0.02em; }
+.r-betrag-sub { font-size: 11px; color: var(--grau); text-align: right; }
+.r-card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rand);
+  flex-wrap: wrap; gap: 10px;
+}
+.r-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.r-entwurf { background: rgba(161,161,170,0.1); color: var(--grau); border: 1px solid var(--rand); }
+.r-gesendet { background: rgba(59,130,246,0.1); color: var(--blau); border: 1px solid rgba(59,130,246,0.3); }
+.r-bezahlt { background: rgba(34,197,94,0.1); color: var(--gruen); border: 1px solid rgba(34,197,94,0.3); }
+.r-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-r-action {
+  padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: 'Inter', sans-serif; border: 1px solid var(--rand);
+  background: var(--kohle3); color: var(--weiss); transition: all 0.15s;
+}
+.btn-r-action:hover { border-color: var(--amber); color: var(--amber); }
+.btn-r-pdf { background: var(--amber); color: var(--kohle); border-color: var(--amber); }
+.btn-r-pdf:hover { background: var(--amber-light); border-color: var(--amber-light); color: var(--kohle); }
+
+/* ══════════════════════════════
+   TOAST & HELPERS
+══════════════════════════════ */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  padding: 13px 22px; border-radius: 12px; font-size: 14px; font-weight: 700;
+  z-index: 999; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  white-space: nowrap; display: none;
   font-family: 'Inter', sans-serif;
 }
-.btn-nav:hover { background: var(--rot-dark); }
+.toast.show { display: block; }
+.toast-ok { background: var(--gruen); color: var(--kohle); }
+.toast-err { background: var(--rot); color: white; }
 
-/* ── HERO ── */
-.hero {
-  min-height: 100vh; padding: 120px 24px 80px;
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; text-align: center;
-  position: relative; overflow: hidden;
+.loading { text-align: center; padding: 40px; color: var(--grau); font-size: 14px; }
+.spinner {
+  display: inline-block; width: 22px; height: 22px;
+  border: 3px solid var(--rand); border-top-color: var(--amber);
+  border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 8px;
 }
-
-.hero::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(226,0,26,0.12) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(226,0,26,0.12); border: 1px solid rgba(226,0,26,0.3);
-  color: #ff6b7a; font-size: 12px; font-weight: 700;
-  padding: 5px 14px; border-radius: 20px; letter-spacing: 0.08em;
-  text-transform: uppercase; margin-bottom: 28px;
-}
-
-.hero-eyebrow span { width: 6px; height: 6px; background: var(--rot); border-radius: 50%; animation: pulse 1.5s infinite; }
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(1.4);} }
-
-.hero-title {
-  font-size: clamp(36px, 7vw, 80px);
-  font-weight: 900; line-height: 1.05;
-  letter-spacing: -0.03em;
-  max-width: 900px; margin: 0 auto 24px;
-}
-
-.hero-title .rot { color: var(--rot); }
-
-.hero-sub {
-  font-size: clamp(16px, 2.5vw, 20px);
-  color: var(--silber); max-width: 580px;
-  margin: 0 auto 48px; font-weight: 400; line-height: 1.6;
-}
-
-.hero-cta {
-  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
-  margin-bottom: 72px;
-}
-
-.btn-primary {
-  padding: 16px 32px; background: var(--rot); color: white;
-  border: none; border-radius: 8px; font-size: 16px; font-weight: 700;
-  cursor: pointer; font-family: 'Inter', sans-serif;
-  text-decoration: none; display: inline-block;
-  transition: all 0.15s; box-shadow: 0 4px 24px rgba(226,0,26,0.35);
-}
-.btn-primary:hover { background: var(--rot-dark); transform: translateY(-1px); box-shadow: 0 8px 32px rgba(226,0,26,0.45); }
-
-.btn-ghost {
-  padding: 16px 32px; background: transparent; color: white;
-  border: 1.5px solid rgba(255,255,255,0.2); border-radius: 8px;
-  font-size: 16px; font-weight: 600; cursor: pointer;
-  font-family: 'Inter', sans-serif; text-decoration: none;
-  display: inline-block; transition: all 0.15s;
-}
-.btn-ghost:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); }
-
-/* ── LIVE DEMO CARD ── */
-.demo-card {
-  background: var(--stahl-light);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px; padding: 20px;
-  max-width: 420px; width: 100%;
-  margin: 0 auto;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
-  text-align: left;
-  position: relative;
-}
-
-.demo-card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px; padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-
-.demo-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--silber); }
-.demo-live { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gruen); font-weight: 700; }
-.demo-live-dot { width: 6px; height: 6px; background: var(--gruen); border-radius: 50%; animation: pulse 1.5s infinite; }
-
-.demo-field { margin-bottom: 12px; }
-.demo-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--silber); margin-bottom: 5px; }
-.demo-value {
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 7px; padding: 10px 12px; font-size: 13px; color: white;
-  min-height: 38px; position: relative;
-}
-.demo-value.typing::after { content: '|'; animation: blink 0.8s infinite; color: var(--rot); font-weight: 700; }
-@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
-
-.demo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.demo-chip {
-  padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
-  border: 1px solid rgba(255,255,255,0.1); color: var(--silber);
-}
-.demo-chip.active { background: var(--rot); border-color: var(--rot); color: white; }
-
-.demo-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 14px; padding-top: 14px;
-  border-top: 1px solid rgba(255,255,255,0.07);
-}
-.demo-stunden { font-size: 22px; font-weight: 900; color: white; }
-.demo-stunden-label { font-size: 10px; color: var(--silber); }
-.demo-send {
-  padding: 9px 18px; background: var(--rot); color: white;
-  border: none; border-radius: 7px; font-size: 12px; font-weight: 700;
-  cursor: default;
-}
-
-/* ── SCHMERZ-ZAHLEN ── */
-.pain-section {
-  padding: 80px 24px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.pain-inner { max-width: 960px; margin: 0 auto; }
-
-.pain-label {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--rot); margin-bottom: 48px;
-  text-align: center;
-}
-
-.pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
-
-@media(max-width:600px){ .pain-grid { grid-template-columns: 1fr; } }
-
-.pain-item {
-  text-align: center; padding: 40px 24px;
-  background: var(--stahl-light);
-  position: relative;
-}
-.pain-item:first-child { border-radius: 12px 0 0 12px; }
-.pain-item:last-child { border-radius: 0 12px 12px 0; }
-@media(max-width:600px){
-  .pain-item:first-child{border-radius:12px 12px 0 0;}
-  .pain-item:last-child{border-radius:0 0 12px 12px;}
-}
-
-.pain-zahl {
-  font-size: 64px; font-weight: 900; line-height: 1;
-  color: var(--rot); letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-}
-
-.pain-einheit { font-size: 18px; font-weight: 700; color: var(--rot); }
-.pain-text { font-size: 14px; color: var(--silber); margin-top: 8px; line-height: 1.5; }
-.pain-text strong { color: white; }
-
-/* ── FEATURES ── */
-.features-section { padding: 100px 24px; max-width: 1100px; margin: 0 auto; }
-
-.section-eyebrow {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--rot); margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: clamp(28px, 4vw, 44px); font-weight: 900;
-  letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 16px;
-}
-
-.section-sub { font-size: 17px; color: var(--silber); max-width: 520px; margin-bottom: 60px; }
-
-.feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-@media(max-width:700px){ .feature-grid { grid-template-columns: 1fr; } }
-
-.feature-card {
-  background: var(--stahl-light);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 14px; padding: 28px;
-  transition: border-color 0.2s, transform 0.2s;
-}
-.feature-card:hover { border-color: rgba(226,0,26,0.3); transform: translateY(-2px); }
-
-.feature-icon { font-size: 28px; margin-bottom: 14px; }
-.feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-.feature-text { font-size: 14px; color: var(--silber); line-height: 1.6; }
-
-.feature-card.highlight {
-  background: linear-gradient(135deg, rgba(226,0,26,0.15) 0%, rgba(226,0,26,0.05) 100%);
-  border-color: rgba(226,0,26,0.25);
-  grid-column: span 2;
-}
-@media(max-width:700px){ .feature-card.highlight { grid-column: span 1; } }
-
-.feature-card.highlight .feature-title { font-size: 20px; }
-
-/* ── WORKFLOW ── */
-.workflow-section {
-  padding: 100px 24px;
-  background: var(--stahl-light);
-  border-top: 1px solid rgba(255,255,255,0.06);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.workflow-inner { max-width: 960px; margin: 0 auto; }
-
-.workflow-steps {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 0; margin-top: 60px; position: relative;
-}
-@media(max-width:700px){ .workflow-steps { grid-template-columns: 1fr; gap: 16px; } }
-
-.workflow-step { padding: 28px 20px; position: relative; text-align: center; }
-
-.workflow-step::after {
-  content: '→';
-  position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
-  font-size: 20px; color: rgba(226,0,26,0.4);
-}
-.workflow-step:last-child::after { display: none; }
-@media(max-width:700px){ .workflow-step::after { display: none; } }
-
-.workflow-nr {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: rgba(226,0,26,0.15); border: 1px solid rgba(226,0,26,0.3);
-  color: var(--rot); font-size: 14px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 14px;
-}
-.workflow-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-.workflow-text { font-size: 12px; color: var(--silber); line-height: 1.5; }
-
-/* ── REFERENZ ── */
-.referenz-section { padding: 100px 24px; max-width: 900px; margin: 0 auto; text-align: center; }
-
-.referenz-card {
-  background: var(--stahl-light);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px; padding: 48px;
-  position: relative; overflow: hidden;
-}
-
-.referenz-card::before {
-  content: '"';
-  position: absolute; top: -20px; left: 32px;
-  font-size: 160px; font-weight: 900; color: rgba(226,0,26,0.08);
-  line-height: 1; font-family: Georgia, serif;
-}
-
-.referenz-text {
-  font-size: clamp(18px, 3vw, 24px); font-weight: 600;
-  line-height: 1.5; color: white; margin-bottom: 32px;
-  position: relative;
-}
-
-.referenz-person {
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-}
-
-.referenz-avatar {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: var(--rot); display: flex; align-items: center; justify-content: center;
-  font-size: 20px; font-weight: 800; color: white; flex-shrink: 0;
-}
-
-.referenz-name { font-size: 15px; font-weight: 700; text-align: left; }
-.referenz-firma { font-size: 13px; color: var(--silber); }
-
-.referenz-stats {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 2px; margin-top: 40px; border-radius: 10px; overflow: hidden;
-}
-@media(max-width:500px){ .referenz-stats { grid-template-columns: 1fr; } }
-
-.referenz-stat {
-  background: rgba(0,0,0,0.2); padding: 20px;
-  text-align: center;
-}
-.referenz-stat-val { font-size: 28px; font-weight: 900; color: var(--rot); }
-.referenz-stat-lbl { font-size: 11px; color: var(--silber); margin-top: 4px; }
-
-/* ── PRICING ── */
-.pricing-section {
-  padding: 100px 24px;
-  background: var(--stahl-light);
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.pricing-inner { max-width: 860px; margin: 0 auto; }
-
-.pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 56px; }
-@media(max-width:640px){ .pricing-grid { grid-template-columns: 1fr; } }
-
-.pricing-card {
-  background: var(--stahl); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px; padding: 36px;
-}
-
-.pricing-card.featured {
-  background: linear-gradient(135deg, #1a0a0d 0%, #250d10 100%);
-  border-color: rgba(226,0,26,0.4);
-  position: relative; overflow: hidden;
-}
-
-.pricing-card.featured::before {
-  content: 'EMPFOHLEN';
-  position: absolute; top: 20px; right: -28px;
-  background: var(--rot); color: white;
-  font-size: 10px; font-weight: 800; padding: 4px 40px;
-  letter-spacing: 0.1em; transform: rotate(45deg);
-}
-
-.pricing-plan { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--silber); margin-bottom: 12px; }
-.pricing-price { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -0.02em; }
-.pricing-price sup { font-size: 20px; font-weight: 700; vertical-align: super; }
-.pricing-price sub { font-size: 14px; font-weight: 500; color: var(--silber); }
-.pricing-desc { font-size: 14px; color: var(--silber); margin: 12px 0 28px; line-height: 1.5; }
-
-.pricing-features { list-style: none; margin-bottom: 32px; }
-.pricing-features li {
-  font-size: 14px; color: var(--text); padding: 7px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  display: flex; align-items: flex-start; gap: 10px;
-}
-.pricing-features li:last-child { border-bottom: none; }
-.pricing-features li .check { color: var(--gruen); flex-shrink: 0; font-size: 14px; margin-top: 1px; }
-
-.btn-pricing {
-  width: 100%; padding: 14px; border-radius: 8px;
-  font-size: 15px; font-weight: 700; cursor: pointer;
-  font-family: 'Inter', sans-serif; text-align: center;
-  text-decoration: none; display: block; transition: all 0.15s;
-}
-.btn-pricing-ghost { background: transparent; color: white; border: 1.5px solid rgba(255,255,255,0.2); }
-.btn-pricing-ghost:hover { border-color: white; }
-.btn-pricing-red { background: var(--rot); color: white; border: none; box-shadow: 0 4px 20px rgba(226,0,26,0.3); }
-.btn-pricing-red:hover { background: var(--rot-dark); }
-
-.pricing-note { text-align: center; font-size: 13px; color: var(--silber); margin-top: 28px; }
-
-/* ── FAQ ── */
-.faq-section { padding: 100px 24px; max-width: 700px; margin: 0 auto; }
-
-.faq-item { border-bottom: 1px solid rgba(255,255,255,0.07); }
-.faq-q {
-  width: 100%; background: none; border: none; color: white;
-  font-size: 16px; font-weight: 600; text-align: left; padding: 22px 0;
-  cursor: pointer; display: flex; justify-content: space-between;
-  align-items: center; gap: 16px; font-family: 'Inter', sans-serif;
-}
-.faq-icon { color: var(--rot); font-size: 20px; flex-shrink: 0; transition: transform 0.2s; }
-.faq-a { font-size: 15px; color: var(--silber); line-height: 1.7; padding-bottom: 20px; display: none; }
-.faq-item.open .faq-a { display: block; }
-.faq-item.open .faq-icon { transform: rotate(45deg); }
-
-/* ── CTA FINAL ── */
-.cta-section {
-  padding: 120px 24px; text-align: center;
-  background: linear-gradient(180deg, var(--stahl) 0%, #12192A 100%);
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.cta-title {
-  font-size: clamp(32px, 5vw, 56px); font-weight: 900;
-  letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px;
-}
-
-.cta-sub { font-size: 17px; color: var(--silber); margin-bottom: 48px; }
-
-/* ── FOOTER ── */
-footer {
-  padding: 32px 24px; border-top: 1px solid rgba(255,255,255,0.06);
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 16px;
-}
-.footer-logo { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-.footer-copy { font-size: 12px; color: var(--silber); }
-
-/* ── SCROLL REVEAL ── */
-.reveal { opacity: 0; transform: translateY(24px); transition: all 0.6s ease; }
-.reveal.visible { opacity: 1; transform: translateY(0); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 48px 20px; color: var(--grau); }
+.empty-icon { font-size: 44px; margin-bottom: 12px; }
+
+/* Field helpers */
+.sub-label { font-size: 11px; color: var(--grau); margin-top: 3px; }
 </style>
 </head>
 <body>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-logo">
-    <span class="nav-badge">BAUD</span>
-    BauDesk
-  </div>
-  <div class="nav-links">
-    <a href="#features">Funktionen</a>
-    <a href="#pricing">Preise</a>
-    <a href="#faq">FAQ</a>
-    <a href="https://uri2503.github.io/musa-baudesk/" class="btn-nav">Einloggen →</a>
-  </div>
-</nav>
-
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-eyebrow">
-    <span></span>
-    Jetzt verfügbar für Elektrobetriebe
-  </div>
-  <h1 class="hero-title">
-    Schluss mit<br>
-    <span class="rot">Zetteln auf der Baustelle.</span>
-  </h1>
-  <p class="hero-sub">
-    BauDesk digitalisiert Rapport, Zeiterfassung und Abrechnung für Elektrohandwerksbetriebe — vom Handy des Monteurs bis zur Rechnung des Projektleiters.
-  </p>
-  <div class="hero-cta">
-    <a href="#pricing" class="btn-primary">Jetzt starten — ab 79 €/Monat</a>
-    <a href="#features" class="btn-ghost">Funktionen ansehen</a>
+<!-- ══════════════════ LOGIN ══════════════════ -->
+<div id="login-screen">
+  <div class="login-mark">
+    <!-- Logo: Stilisiertes "BD" Zirkel-Zeichen -->
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="64" height="64" rx="16" fill="#F59E0B"/>
+      <path d="M18 16H30C36.627 16 42 21.373 42 28C42 34.627 36.627 40 30 40H18V16Z" fill="#18181B"/>
+      <path d="M18 40H32C38.627 40 44 34.627 44 28C44 21.373 38.627 16 32 16" stroke="#18181B" stroke-width="0" fill="none"/>
+      <rect x="18" y="16" width="4" height="32" fill="#18181B"/>
+      <rect x="18" y="16" width="16" height="4" rx="2" fill="#18181B"/>
+      <rect x="18" y="36" width="14" height="4" rx="2" fill="#18181B"/>
+      <circle cx="30" cy="28" r="8" fill="#F59E0B"/>
+      <circle cx="30" cy="28" r="4" fill="#18181B"/>
+    </svg>
+    <div class="login-mark-name">BauDesk</div>
+    <div class="login-mark-sub">Baustellen · Management</div>
   </div>
 
-  <!-- LIVE DEMO CARD -->
-  <div class="demo-card">
-    <div class="demo-card-header">
-      <div class="demo-card-title">📋 Rapport — Baustelle</div>
-      <div class="demo-live"><div class="demo-live-dot"></div>Live</div>
+  <div class="login-card">
+    <div class="login-err" id="login-err"></div>
+    <div class="lf">
+      <label>Mitarbeiter</label>
+      <select id="l-name">
+        <option value="">— auswählen —</option>
+      </select>
     </div>
-    <div class="demo-field">
-      <div class="demo-label">Projekt</div>
-      <div class="demo-value" id="demo-projekt">Wohnanlage Kirchheim</div>
+    <div class="lf">
+      <label>PIN</label>
+      <input type="password" id="l-pin" class="pin-input" placeholder="····" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-    <div class="demo-field">
-      <div class="demo-label">Leistungsbereich</div>
-      <div class="demo-chips">
-        <div class="demo-chip active">⚡ Elektroinstallation</div>
-        <div class="demo-chip">🔒 Sicherheit</div>
-        <div class="demo-chip">☀️ PV</div>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Einloggen →</button>
+    <div class="login-hint">Monteure: PIN <b>1234</b> &nbsp;·&nbsp; Projektleiter: PIN <b>9999</b></div>
+  </div>
+</div>
+
+<!-- ══════════════════ APP ══════════════════ -->
+<div id="app">
+  <div class="app-header">
+    <div class="app-logo">
+      <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="64" height="64" rx="14" fill="#F59E0B"/>
+        <rect x="18" y="16" width="4" height="32" fill="#18181B"/>
+        <rect x="18" y="16" width="16" height="4" rx="2" fill="#18181B"/>
+        <rect x="18" y="36" width="14" height="4" rx="2" fill="#18181B"/>
+        <circle cx="30" cy="28" r="8" fill="#F59E0B"/>
+        <circle cx="30" cy="28" r="4" fill="#18181B"/>
+      </svg>
+      <span class="app-logo-name">BauDesk</span>
+    </div>
+    <div class="app-user" onclick="doLogout()">
+      <div class="app-user-name" id="user-name">—</div>
+      <div class="app-user-rolle" id="user-rolle">Abmelden</div>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div style="padding:20px 20px 0;">
+      <div class="home-greet">
+        <div class="home-greet-sub" id="home-tageszeit">Guten Morgen</div>
+        <div class="home-greet-name" id="home-name">—</div>
+        <div class="home-greet-date" id="home-datum">—</div>
+      </div>
+
+      <!-- Stempel Status -->
+      <div class="stempel-banner" id="home-stempel-banner">
+        <div class="stempel-banner-dot"></div>
+        <div class="stempel-banner-text">
+          <div class="stempel-banner-label">Arbeitsbeginn</div>
+          <div class="stempel-banner-info" id="home-stempel-info">Noch nicht eingestempelt</div>
+        </div>
+        <div class="stempel-banner-timer" id="home-stempel-timer"></div>
       </div>
     </div>
-    <div class="demo-field">
-      <div class="demo-label">Tätigkeit</div>
-      <div class="demo-value typing" id="demo-text"></div>
+
+    <div class="home-actions" style="padding:0 20px 40px;">
+      <button class="action-btn primary" onclick="goScreen('stempel')">
+        <div class="action-icon">⏱</div>
+        <div class="action-text">
+          <div class="action-title">Arbeitsbeginn / -ende</div>
+          <div class="action-sub">Stempeluhr starten oder beenden</div>
+        </div>
+        <div class="action-arrow">›</div>
+      </button>
+
+      <button class="action-btn" onclick="goScreen('rapport')">
+        <div class="action-icon">📋</div>
+        <div class="action-text">
+          <div class="action-title">Tagesrapport</div>
+          <div class="action-sub">Was habe ich heute gemacht?</div>
+        </div>
+        <div class="action-arrow">›</div>
+      </button>
+
+      <button class="action-btn pl-only" onclick="goScreen('dashboard')" style="display:none;">
+        <span class="pl-badge">Projektleiter</span>
+        <div class="action-icon">📊</div>
+        <div class="action-text">
+          <div class="action-title">Dashboard</div>
+          <div class="action-sub">Alle Projekte & Rapporte</div>
+        </div>
+        <div class="action-arrow">›</div>
+      </button>
+
+      <button class="action-btn pl-only" onclick="goScreen('auswertung')" style="display:none;">
+        <div class="action-icon">📈</div>
+        <div class="action-text">
+          <div class="action-title">Auswertung</div>
+          <div class="action-sub">Stunden pro Mitarbeiter</div>
+        </div>
+        <div class="action-arrow">›</div>
+      </button>
+
+      <button class="action-btn pl-only" onclick="goScreen('rechnungen')" style="display:none;">
+        <div class="action-icon">📄</div>
+        <div class="action-text">
+          <div class="action-title">Rechnungen</div>
+          <div class="action-sub">Teil- und Schlussrechnungen</div>
+        </div>
+        <div class="action-arrow">›</div>
+      </button>
     </div>
-    <div class="demo-footer">
-      <div>
-        <div class="demo-stunden" id="demo-std">8.0</div>
-        <div class="demo-stunden-label">Std. heute</div>
+  </div>
+
+  <!-- STEMPEL -->
+  <div id="screen-stempel" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" onclick="goHome()">‹</button>
+      <div class="screen-title">Arbeitsbeginn / -ende</div>
+    </div>
+    <div class="stempel-wrap">
+      <div class="uhr-card">
+        <div class="uhr-face">
+          <div class="uhr-zeit" id="s-uhr">00:00:00</div>
+          <div class="uhr-datum" id="s-datum">—</div>
+          <div class="uhr-laufzeit" id="s-laufzeit"></div>
+        </div>
+        <div class="uhr-body">
+          <div class="uhr-status aus" id="s-status">
+            <div class="uhr-status-dot"></div>
+            <span id="s-status-text">Nicht eingestempelt</span>
+          </div>
+          <div class="uhr-projekt field-group">
+            <label class="field-label">Projekt</label>
+            <select id="s-projekt" class="field-select">
+              <option value="">— Projekt auswählen —</option>
+            </select>
+          </div>
+          <div class="uhr-btns">
+            <button class="btn-kommen" id="btn-kommen" onclick="stempelKommen()">▶ KOMMEN</button>
+            <button class="btn-gehen" id="btn-gehen" onclick="stempelGehen()" disabled>■ GEHEN</button>
+          </div>
+        </div>
       </div>
-      <div class="demo-send">✅ Absenden</div>
+      <div class="history-title">Letzte Einträge</div>
+      <div class="history-list" id="s-history"></div>
     </div>
   </div>
-</section>
 
-<!-- SCHMERZ-ZAHLEN -->
-<section class="pain-section">
-  <div class="pain-inner">
-    <div class="pain-label">Die Realität im deutschen Elektrohandwerk</div>
-    <div class="pain-grid">
-      <div class="pain-item reveal">
-        <div class="pain-zahl">3<span class="pain-einheit">h</span></div>
-        <div class="pain-text">verliert ein Projektleiter <strong>pro Woche</strong> mit dem Übertragen von Handzetteln ins System</div>
+  <!-- RAPPORT -->
+  <div id="screen-rapport" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" onclick="goHome()">‹</button>
+      <div class="screen-title">Tagesrapport</div>
+    </div>
+    <div class="rapport-wrap">
+      <div class="field-group">
+        <label class="field-label">Projekt</label>
+        <select id="r-projekt" class="field-select"></select>
       </div>
-      <div class="pain-item reveal">
-        <div class="pain-zahl">23<span class="pain-einheit">%</span></div>
-        <div class="pain-text">der Rechnungen in Handwerksbetrieben werden <strong>zu spät oder unvollständig</strong> gestellt</div>
+      <div class="field-group">
+        <label class="field-label">Leistungsbereich</label>
+        <div class="chip-grid">
+          <div class="chip" onclick="toggleChip(this)" data-val="Elektroinstallation">⚡ Elektroinstallation</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Erneuerbare Energien">☀️ Erneuerbare Energien</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Sicherheit">🔒 Sicherheit</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Haustechnik">🏠 Haustechnik</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Industrie & Gewerbe">🏭 Industrie</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Licht & Leuchten">💡 Licht & Leuchten</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Elektromobilität">🚗 E-Mobilität</div>
+          <div class="chip" onclick="toggleChip(this)" data-val="Multimedia">📡 Multimedia</div>
+        </div>
       </div>
-      <div class="pain-item reveal">
-        <div class="pain-zahl">€ 0</div>
-        <div class="pain-text">verdient man an Projekten über die man <strong>keinen Überblick</strong> hat</div>
+      <div class="field-group">
+        <label class="field-label">Datum & Stunden</label>
+        <div class="zeit-row">
+          <div>
+            <input type="date" id="r-datum" class="field-input">
+          </div>
+          <div>
+            <input type="number" id="r-stunden" class="field-input" placeholder="8.0" min="0.5" max="12" step="0.5">
+            <div class="stunden-from-stempel" id="r-stunden-hint" style="display:none;">⏱ Aus Stempeluhr übernommen</div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- FEATURES -->
-<section class="features-section" id="features">
-  <div class="section-eyebrow">Funktionen</div>
-  <h2 class="section-title">Alles was ein<br>Elektrobetrieb braucht.</h2>
-  <p class="section-sub">Kein kompliziertes ERP. Kein monatelanges Einrichten. In einem Tag einsatzbereit.</p>
-
-  <div class="feature-grid">
-    <div class="feature-card highlight reveal">
-      <div class="feature-icon">⏱</div>
-      <div class="feature-title">Digitale Stempeluhr + Rapport in einem</div>
-      <div class="feature-text">Monteur drückt KOMMEN auf dem Handy — BauDesk erfasst die Zeit. Beim GEHEN werden Stunden automatisch in den Tagesrapport übernommen. Kein Zettel, kein Nachtippen, kein Vergessen. Mit Foto-Upload direkt von der Baustelle.</div>
-    </div>
-    <div class="feature-card reveal">
-      <div class="feature-icon">📊</div>
-      <div class="feature-title">Projektleiter-Dashboard</div>
-      <div class="feature-text">Alle Projekte auf einen Blick, gefiltert nach Leistungsbereich. Jeder eingegangene Rapport mit Foto, Mitarbeiter und Uhrzeit — live, ohne Anruf.</div>
-    </div>
-    <div class="feature-card reveal">
-      <div class="feature-icon">📈</div>
-      <div class="feature-title">Stundenauswertung pro Mitarbeiter</div>
-      <div class="feature-text">Wer hat diese Woche wieviel gearbeitet? Einsatztage, Ø Stunden pro Tag, Rapporte — sofort abrufbar. Basis für die spätere Gehaltsabrechnung.</div>
-    </div>
-    <div class="feature-card reveal">
-      <div class="feature-icon">📄</div>
-      <div class="feature-title">Rechnung per Knopfdruck</div>
-      <div class="feature-text">Aus erfassten Stunden wird in Sekunden eine Teil- oder Schlussrechnung als PDF — mit Firmenlogo, MwSt., Zahlungsziel. Status-Tracking: Entwurf → Gesendet → Bezahlt.</div>
-    </div>
-    <div class="feature-card reveal">
-      <div class="feature-icon">🔐</div>
-      <div class="feature-title">Sicherer Login ohne Passwort</div>
-      <div class="feature-text">Mitarbeiter loggen sich per E-Mail Code ein — kein Passwort das vergessen werden kann. Projektleiter und Monteure sehen nur was sie sehen dürfen.</div>
-    </div>
-    <div class="feature-card reveal">
-      <div class="feature-icon">📱</div>
-      <div class="feature-title">Läuft auf jedem Handy</div>
-      <div class="feature-text">Keine App-Installation. Browser aufmachen, URL eintippen — fertig. iOS, Android, Tablet. Auch auf dem alten Samsung des Lehrlings.</div>
-    </div>
-  </div>
-</section>
-
-<!-- WORKFLOW -->
-<section class="workflow-section">
-  <div class="workflow-inner">
-    <div class="section-eyebrow">So einfach geht's</div>
-    <h2 class="section-title reveal">Vom Kommen bis zur Rechnung.</h2>
-    <div class="workflow-steps">
-      <div class="workflow-step reveal">
-        <div class="workflow-nr">1</div>
-        <div class="workflow-title">Einstempeln</div>
-        <div class="workflow-text">Monteur drückt KOMMEN, wählt Projekt — Zeit läuft.</div>
+      <div class="field-group">
+        <label class="field-label">Was wurde gemacht?</label>
+        <textarea id="r-beschreibung" class="field-textarea" placeholder="Z.B.: Kabelverlegung EG abgeschlossen, Unterverteilung UV1 verdrahtet…"></textarea>
       </div>
-      <div class="workflow-step reveal">
-        <div class="workflow-nr">2</div>
-        <div class="workflow-title">Rapport senden</div>
-        <div class="workflow-text">Beim GEHEN: Beschreibung + Foto — Stunden automatisch übernommen.</div>
+      <div class="field-group">
+        <label class="field-label">Fotos</label>
+        <div class="foto-zone" onclick="document.getElementById('foto-input').click()">
+          <input type="file" id="foto-input" accept="image/*" multiple capture="environment" onchange="handleFotos(event)">
+          <div class="foto-zone-icon">📷</div>
+          <div class="foto-zone-text">Fotos von der Baustelle</div>
+          <div class="foto-zone-sub">Tippen zum Aufnehmen</div>
+        </div>
+        <div class="foto-previews" id="foto-previews"></div>
       </div>
-      <div class="workflow-step reveal">
-        <div class="workflow-nr">3</div>
-        <div class="workflow-title">PL sieht alles</div>
-        <div class="workflow-text">Dashboard zeigt alle Rapporte live — kein Anruf, kein Zettel.</div>
-      </div>
-      <div class="workflow-step reveal">
-        <div class="workflow-nr">4</div>
-        <div class="workflow-title">Rechnung raus</div>
-        <div class="workflow-text">Stunden → PDF-Rechnung in 30 Sekunden. Fertig.</div>
-      </div>
+      <button class="btn-senden" id="btn-rapport" onclick="rapportSenden()">Rapport absenden →</button>
     </div>
   </div>
-</section>
 
-
-
-<!-- PRICING -->
-<section class="pricing-section" id="pricing">
-  <div class="pricing-inner">
-    <div class="section-eyebrow" style="text-align:center;">Preise</div>
-    <h2 class="section-title reveal" style="text-align:center;">Transparent.<br>Keine Überraschungen.</h2>
-    <div class="pricing-grid">
-      <div class="pricing-card reveal">
-        <div class="pricing-plan">Starter</div>
-        <div class="pricing-price"><sup>€</sup>1.500 <sub>einmalig</sub></div>
-        <div class="pricing-desc">Setup, Einrichtung und Schulung. Ihr Betrieb, Ihre Mitarbeiter, Ihre Projekte — fertig konfiguriert.</div>
-        <ul class="pricing-features">
-          <li><span class="check">✓</span> Einrichtung aller Mitarbeiter & Projekte</li>
-          <li><span class="check">✓</span> Schulung Projektleiter (1h)</li>
-          <li><span class="check">✓</span> CI-Anpassung (Logo, Farben)</li>
-          <li><span class="check">✓</span> 30 Tage Support</li>
-        </ul>
-        <a href="mailto:info@riedel-classics.de?subject=BauDesk Anfrage" class="btn-pricing btn-pricing-ghost">Anfragen</a>
-      </div>
-      <div class="pricing-card featured reveal">
-        <div class="pricing-plan">Monatlich</div>
-        <div class="pricing-price"><sup>€</sup>79 <sub>/ Monat</sub></div>
-        <div class="pricing-desc">Hosting, Updates und Weiterentwicklung. Kündbar monatlich.</div>
-        <ul class="pricing-features">
-          <li><span class="check">✓</span> Unbegrenzte Mitarbeiter & Projekte</li>
-          <li><span class="check">✓</span> Stempeluhr + Rapport + Dashboard</li>
-          <li><span class="check">✓</span> Auswertung & PDF-Rechnungen</li>
-          <li><span class="check">✓</span> WhatsApp-Benachrichtigungen</li>
-          <li><span class="check">✓</span> Laufende Updates</li>
-          <li><span class="check">✓</span> DATEV-Export (Q3 2025)</li>
-          <li><span class="check">✓</span> Persönlicher Support</li>
-        </ul>
-        <a href="mailto:info@riedel-classics.de?subject=BauDesk Anfrage" class="btn-pricing btn-pricing-red">Jetzt anfragen</a>
-      </div>
+  <!-- DASHBOARD -->
+  <div id="screen-dashboard" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" onclick="goHome()">‹</button>
+      <div class="screen-title">Dashboard</div>
     </div>
-    <div class="pricing-note">Alle Preise zzgl. MwSt. · Keine versteckten Kosten · Hosting inklusive</div>
-  </div>
-</section>
-
-<!-- FAQ -->
-<section class="faq-section" id="faq">
-  <div class="section-eyebrow" style="text-align:center;margin-bottom:40px;">Häufige Fragen</div>
-
-  <div class="faq-item">
-    <button class="faq-q" onclick="toggleFaq(this)">
-      Brauchen unsere Monteure eine App installieren?
-      <span class="faq-icon">+</span>
-    </button>
-    <div class="faq-a">Nein. BauDesk läuft im Browser — auf jedem Handy, Tablet oder PC. Kein App Store, kein Update, keine Installation. URL aufrufen, fertig.</div>
-  </div>
-
-  <div class="faq-item">
-    <button class="faq-q" onclick="toggleFaq(this)">
-      Was wenn ein Monteur kein Smartphone hat?
-      <span class="faq-icon">+</span>
-    </button>
-    <div class="faq-a">BauDesk läuft auf jedem Handy mit Browser — auch auf einfachen Android-Geräten. Für die Stempeluhr reicht ein Smartphone unter 100 €.</div>
+    <div class="dashboard-wrap">
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-lbl">Projekte</div><div class="kpi-val amber" id="kpi-p">—</div></div>
+        <div class="kpi-card"><div class="kpi-lbl">Rapporte heute</div><div class="kpi-val" id="kpi-h">—</div></div>
+        <div class="kpi-card"><div class="kpi-lbl">Stunden gesamt</div><div class="kpi-val" id="kpi-s">—</div></div>
+        <div class="kpi-card"><div class="kpi-lbl">Aktive Projekte</div><div class="kpi-val" id="kpi-a">—</div></div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-chip active" onclick="setFilter('alle',this)">Alle</div>
+        <div class="filter-chip" onclick="setFilter('Elektroinstallation',this)">Elektroinstallation</div>
+        <div class="filter-chip" onclick="setFilter('Erneuerbare Energien',this)">Erneuerbare Energien</div>
+        <div class="filter-chip" onclick="setFilter('Sicherheit',this)">Sicherheit</div>
+        <div class="filter-chip" onclick="setFilter('Haustechnik',this)">Haustechnik</div>
+        <div class="filter-chip" onclick="setFilter('Industrie & Gewerbe',this)">Industrie & Gewerbe</div>
+      </div>
+      <div class="projekt-list" id="projekt-list"><div class="loading"><div class="spinner"></div><br>Lade…</div></div>
+    </div>
   </div>
 
-  <div class="faq-item">
-    <button class="faq-q" onclick="toggleFaq(this)">
-      Wie lange dauert die Einrichtung?
-      <span class="faq-icon">+</span>
-    </button>
-    <div class="faq-a">Wir richten alles für Sie ein — Mitarbeiter, Projekte, Leistungsbereiche. In der Regel ist Ihr Betrieb innerhalb eines Tages startklar.</div>
+  <!-- AUSWERTUNG -->
+  <div id="screen-auswertung" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" onclick="goHome()">‹</button>
+      <div class="screen-title">Auswertung</div>
+    </div>
+    <div class="auswertung-wrap">
+      <div class="period-tabs">
+        <button class="period-tab active" onclick="setPeriod('woche',this)">Woche</button>
+        <button class="period-tab" onclick="setPeriod('monat',this)">Monat</button>
+        <button class="period-tab" onclick="setPeriod('gesamt',this)">Gesamt</button>
+      </div>
+      <div id="auswertung-gesamt"></div>
+      <div id="auswertung-list"><div class="loading"><div class="spinner"></div><br>Lade…</div></div>
+    </div>
   </div>
 
-  <div class="faq-item">
-    <button class="faq-q" onclick="toggleFaq(this)">
-      Können wir BauDesk vor dem Kauf testen?
-      <span class="faq-icon">+</span>
-    </button>
-    <div class="faq-a">Ja. Wir richten eine Demo-Umgebung mit Ihren echten Projekten und Mitarbeitern ein — kostenlos, unverbindlich, 14 Tage.</div>
+  <!-- RECHNUNGEN -->
+  <div id="screen-rechnungen" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" onclick="goHome()">‹</button>
+      <div class="screen-title">Rechnungen</div>
+    </div>
+    <div class="rechnungen-wrap">
+      <button class="btn-neu-rechnung" onclick="toggleNeuForm()">＋ Neue Rechnung erstellen</button>
+      <div class="neu-form" id="neu-form">
+        <div class="neu-form-title">Neue Rechnung</div>
+        <div class="form-full">
+          <label class="field-label">Projekt</label>
+          <select id="rneu-projekt" class="field-select"></select>
+        </div>
+        <div class="form-row">
+          <div>
+            <label class="field-label">Typ</label>
+            <select id="rneu-typ" class="field-select">
+              <option value="teilrechnung">Teilrechnung</option>
+              <option value="schlussrechnung">Schlussrechnung</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Datum</label>
+            <input type="date" id="rneu-datum" class="field-input">
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label class="field-label">Stunden</label>
+            <input type="number" id="rneu-stunden" class="field-input" placeholder="0" step="0.5">
+          </div>
+          <div>
+            <label class="field-label">Stundensatz €</label>
+            <input type="number" id="rneu-satz" class="field-input" value="85" step="5">
+          </div>
+        </div>
+        <div class="form-full">
+          <label class="field-label">Notiz</label>
+          <textarea id="rneu-notiz" class="field-textarea" style="min-height:60px;" placeholder="Leistungszeitraum, Hinweise…"></textarea>
+        </div>
+        <button class="btn-senden" onclick="rechnungSpeichern()">Rechnung anlegen →</button>
+      </div>
+      <div id="rechnung-list"><div class="loading"><div class="spinner"></div><br>Lade…</div></div>
+    </div>
   </div>
+</div>
 
-  <div class="faq-item">
-    <button class="faq-q" onclick="toggleFaq(this)">
-      Was passiert mit unseren Daten?
-      <span class="faq-icon">+</span>
-    </button>
-    <div class="faq-a">Alle Daten werden in der EU gespeichert (Frankfurt). DSGVO-konform. Sie behalten jederzeit die volle Kontrolle über Ihre Daten — Export jederzeit möglich.</div>
-  </div>
-</section>
-
-<!-- CTA FINAL -->
-<section class="cta-section">
-  <h2 class="cta-title reveal">Bereit für den<br><span style="color:var(--rot);">digitalen Rapport?</span></h2>
-  <p class="cta-sub reveal">Kein Risiko. Kostenlose Demo. In einem Tag startklar.</p>
-  <div class="hero-cta">
-    <a href="mailto:info@riedel-classics.de?subject=BauDesk Demo anfragen" class="btn-primary">Demo anfragen</a>
-    <a href="https://uri2503.github.io/musa-baudesk/" class="btn-ghost">Direkt einloggen</a>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer>
-  <div class="footer-logo">
-    <span class="nav-badge" style="font-size:10px;">BAUD</span>
-    BauDesk
-  </div>
-  <div class="footer-copy">© 2025 Riedel Classics · Ein Produkt aus Wernau · Alle Rechte vorbehalten</div>
-</footer>
+<div class="toast toast-ok" id="toast-ok"></div>
+<div class="toast toast-err" id="toast-err"></div>
 
 <script>
-// ── DEMO ANIMATION ──
-const texte = [
-  'Kabelverlegung EG abgeschlossen, 3 Unterverteilungen verdrahtet',
-  'Brandmeldeanlage Melder OG gesetzt, Leitungen 80% fertig',
-  'Schaltschrankbau HV: Hauptverteilung verdrahtet und geprüft',
-  'PV-Anlage Wechselrichter montiert, DC-Verkabelung fertig',
-];
-let tIdx = 0, cIdx = 0, deleting = false;
-const el = document.getElementById('demo-text');
+const SB_URL='https://ysqzdqazcgyuzdorauiq.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzcXpkcWF6Y2d5dXpkb3JhdWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODM0NzcsImV4cCI6MjA5NTU1OTQ3N30.u5cbSVniUl5Zvlf2rdpnjtvDyKvv9csmPwvdtnEwWzE';
+const {createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
 
-function typeDemo() {
-  const text = texte[tIdx];
-  if (!deleting) {
-    el.textContent = text.slice(0, ++cIdx);
-    if (cIdx === text.length) { deleting = true; setTimeout(typeDemo, 2200); return; }
-    setTimeout(typeDemo, 38);
+let currentMa=null,projekte=[],mitarbeiter=[];
+let selectedLeistung=null,fotoData=[];
+let currentFilter='alle',currentPeriod='woche';
+let uhrzeitInterval=null,stempelInterval=null,aktiverStempel=null;
+
+// ── PIN LOGIN ──
+async function doLogin(){
+  const maId=document.getElementById('l-name').value;
+  const pin=document.getElementById('l-pin').value.trim();
+  const errEl=document.getElementById('login-err');
+  errEl.style.display='none';
+  if(!maId){errEl.textContent='Bitte Mitarbeiter auswählen.';errEl.style.display='block';return;}
+  if(!pin){errEl.textContent='Bitte PIN eingeben.';errEl.style.display='block';return;}
+  const btn=document.getElementById('btn-login');
+  btn.disabled=true;btn.textContent='⏳ Prüfe…';
+  const {data,error}=await db.from('musa_mitarbeiter').select('*').eq('id',maId).eq('pin',pin).single();
+  if(error||!data){
+    errEl.textContent='PIN falsch. Nochmal versuchen.';
+    errEl.style.display='block';
+    btn.disabled=false;btn.textContent='Einloggen →';return;
+  }
+  localStorage.setItem('musa_session',JSON.stringify({maId:data.id,ts:Date.now()}));
+  await startApp(data);
+  btn.disabled=false;btn.textContent='Einloggen →';
+}
+
+async function startApp(ma){
+  currentMa=ma;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-name').textContent=ma.name;
+  document.getElementById('user-rolle').textContent=(ma.rolle||'')+'  ·  Abmelden';
+  // PL-only Buttons
+  if(ma.rolle!=='monteur'){
+    document.querySelectorAll('.pl-only').forEach(el=>el.style.display='flex');
+  }
+  // Home Begrüssung
+  const h=new Date().getHours();
+  const gt=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
+  document.getElementById('home-tageszeit').textContent=gt;
+  document.getElementById('home-name').textContent=ma.name+' 👷';
+  document.getElementById('home-datum').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  startUhr();
+  await init();
+}
+
+async function doLogout(){
+  clearInterval(uhrzeitInterval);clearInterval(stempelInterval);
+  currentMa=null;aktiverStempel=null;
+  localStorage.removeItem('musa_session');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('l-pin').value='';
+  document.getElementById('l-name').value='';
+  document.getElementById('login-err').style.display='none';
+  goHome();
+}
+
+// Session wiederherstellen
+(async function(){
+  // Mitarbeiter-Liste laden
+  const {data:m}=await db.from('musa_mitarbeiter').select('id,name,rolle').order('name');
+  if(m){
+    const sel=document.getElementById('l-name');
+    m.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;sel.appendChild(o);});
+  }
+  // Session check
+  const s=localStorage.getItem('musa_session');
+  if(s){
+    try{
+      const sess=JSON.parse(s);
+      if(Date.now()-sess.ts<8*3600*1000){
+        const {data}=await db.from('musa_mitarbeiter').select('*').eq('id',sess.maId).single();
+        if(data) await startApp(data);
+      } else { localStorage.removeItem('musa_session'); }
+    }catch(e){localStorage.removeItem('musa_session');}
+  }
+})();
+
+// ── NAVIGATION ──
+function goScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(name==='dashboard')renderDashboard();
+  if(name==='auswertung')renderAuswertung();
+  if(name==='rechnungen')renderRechnungen();
+}
+function goHome(){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-home').classList.add('active');
+  updateHomeBanner();
+}
+
+// ── UHR ──
+function startUhr(){
+  clearInterval(uhrzeitInterval);
+  function tick(){
+    const now=new Date();
+    document.getElementById('s-uhr').textContent=now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('s-datum').textContent=now.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long'});
+  }
+  tick();uhrzeitInterval=setInterval(tick,1000);
+}
+
+// ── INIT ──
+async function init(){
+  document.getElementById('r-datum').value=new Date().toISOString().split('T')[0];
+  document.getElementById('rneu-datum').value=new Date().toISOString().split('T')[0];
+  const [{data:p},{data:m}]=await Promise.all([
+    db.from('musa_projekte').select('*').order('name'),
+    db.from('musa_mitarbeiter').select('*').order('name')
+  ]);
+  projekte=p||[];mitarbeiter=m||[];
+  ['r-projekt','s-projekt','rneu-projekt'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    sel.innerHTML='<option value="">— Projekt auswählen —</option>';
+    projekte.forEach(pr=>{const o=document.createElement('option');o.value=pr.id;o.textContent=pr.name;sel.appendChild(o);});
+  });
+  await ladeAktivenStempel();
+  updateHomeBanner();
+}
+
+// ── STEMPELUHR ──
+function updateHomeBanner(){
+  const banner=document.getElementById('home-stempel-banner');
+  const info=document.getElementById('home-stempel-info');
+  const timer=document.getElementById('home-stempel-timer');
+  if(aktiverStempel){
+    banner.classList.add('aktiv');
+    const p=projekte.find(x=>x.id===aktiverStempel.projektId);
+    info.textContent=(p?p.name:'Projekt') + ' · seit ' + aktiverStempel.ein.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    // Live-Timer auf Home
+    clearInterval(stempelInterval);
+    stempelInterval=setInterval(()=>{
+      if(!aktiverStempel)return;
+      const diff=Math.floor((Date.now()-aktiverStempel.ein)/1000);
+      const h=Math.floor(diff/3600),min=Math.floor((diff%3600)/60),s=diff%60;
+      const str=String(h).padStart(2,'0')+':'+String(min).padStart(2,'0')+':'+String(s).padStart(2,'0');
+      timer.textContent=str;
+      // Auch in Stempel-Screen
+      const lr=document.getElementById('s-laufzeit');
+      if(lr) lr.textContent='⏱ '+str+' aktiv';
+    },1000);
   } else {
-    el.textContent = text.slice(0, --cIdx);
-    if (cIdx === 0) { deleting = false; tIdx = (tIdx + 1) % texte.length; setTimeout(typeDemo, 400); return; }
-    setTimeout(typeDemo, 18);
+    banner.classList.remove('aktiv');
+    info.textContent='Noch nicht eingestempelt';
+    timer.textContent='';
+    clearInterval(stempelInterval);
+    const lr=document.getElementById('s-laufzeit');
+    if(lr) lr.textContent='';
   }
 }
-setTimeout(typeDemo, 800);
 
-// ── SCROLL REVEAL ──
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
-}, { threshold: 0.1 });
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-// ── FAQ ──
-function toggleFaq(btn) {
-  const item = btn.closest('.faq-item');
-  const isOpen = item.classList.contains('open');
-  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-  if (!isOpen) item.classList.add('open');
+async function ladeAktivenStempel(){
+  if(!currentMa)return;
+  const {data}=await db.from('musa_stempeluhr').select('*').eq('mitarbeiter_id',currentMa.id).is('gestempelt_aus',null).order('gestempelt_ein',{ascending:false}).limit(1);
+  if(data&&data.length>0){
+    aktiverStempel={id:data[0].id,ein:new Date(data[0].gestempelt_ein),projektId:data[0].projekt_id};
+    stempelUIAktiv();
+  }
+  ladeHistory();
 }
+
+function stempelUIAktiv(){
+  document.getElementById('btn-kommen').disabled=true;
+  document.getElementById('btn-gehen').disabled=false;
+  const st=document.getElementById('s-status');
+  st.className='uhr-status ein';
+  document.getElementById('s-status-text').textContent='Eingestempelt';
+  if(aktiverStempel.projektId) document.getElementById('s-projekt').value=aktiverStempel.projektId;
+  updateHomeBanner();
+}
+
+function stempelUIInaktiv(){
+  aktiverStempel=null;
+  document.getElementById('btn-kommen').disabled=false;
+  document.getElementById('btn-gehen').disabled=true;
+  const st=document.getElementById('s-status');
+  st.className='uhr-status aus';
+  document.getElementById('s-status-text').textContent='Nicht eingestempelt';
+  document.getElementById('s-laufzeit').textContent='';
+  updateHomeBanner();
+}
+
+async function stempelKommen(){
+  const projektId=document.getElementById('s-projekt').value;
+  if(!projektId){showErr('Bitte Projekt auswählen.');return;}
+  const {data,error}=await db.from('musa_stempeluhr').insert({mitarbeiter_id:currentMa.id,projekt_id:projektId,gestempelt_ein:new Date().toISOString()}).select().single();
+  if(error){showErr('Fehler: '+error.message);return;}
+  aktiverStempel={id:data.id,ein:new Date(data.gestempelt_ein),projektId};
+  stempelUIAktiv();showOk('✅ Eingestempelt!');ladeHistory();
+}
+
+async function stempelGehen(){
+  if(!aktiverStempel)return;
+  const jetzt=new Date();
+  const {error}=await db.from('musa_stempeluhr').update({gestempelt_aus:jetzt.toISOString()}).eq('id',aktiverStempel.id);
+  if(error){showErr('Fehler: '+error.message);return;}
+  const diffH=((jetzt-aktiverStempel.ein)/3600000).toFixed(1);
+  document.getElementById('r-stunden').value=diffH;
+  document.getElementById('r-datum').value=jetzt.toISOString().split('T')[0];
+  document.getElementById('r-stunden-hint').style.display='block';
+  if(aktiverStempel.projektId) document.getElementById('r-projekt').value=aktiverStempel.projektId;
+  stempelUIInaktiv();
+  showOk('✅ Ausgestempelt — Rapport vorausgefüllt!');
+  ladeHistory();
+}
+
+async function ladeHistory(){
+  if(!currentMa)return;
+  const {data}=await db.from('musa_stempeluhr').select('*,musa_projekte(name)').eq('mitarbeiter_id',currentMa.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(5);
+  const el=document.getElementById('s-history');
+  if(!data||!data.length){el.innerHTML='<div style="color:var(--grau);font-size:13px;padding:10px 0;">Noch keine Einträge</div>';return;}
+  el.innerHTML=data.map(r=>{
+    const ein=new Date(r.gestempelt_ein),aus=new Date(r.gestempelt_aus);
+    const std=((aus-ein)/3600000).toFixed(1);
+    const datum=ein.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const zeit=ein.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' – '+aus.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="history-row">
+      <div><div class="history-projekt">${r.musa_projekte?.name||'—'}</div><div class="history-meta">${datum} · ${zeit}</div></div>
+      <div class="history-std">${std}h</div>
+    </div>`;
+  }).join('');
+}
+
+// ── RAPPORT ──
+function toggleChip(el){document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');selectedLeistung=el.dataset.val;}
+
+function handleFotos(e){
+  const files=Array.from(e.target.files);const pre=document.getElementById('foto-previews');pre.innerHTML='';fotoData=[];
+  files.slice(0,6).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');const max=600;let w=img.width,h=img.height;
+        if(w>max){h=h*(max/w);w=max;}canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        const data=canvas.toDataURL('image/jpeg',.7);fotoData.push(data);
+        const th=document.createElement('img');th.src=data;th.className='foto-thumb';pre.appendChild(th);
+      };img.src=ev.target.result;
+    };reader.readAsDataURL(file);
+  });
+}
+
+async function rapportSenden(){
+  const projektId=document.getElementById('r-projekt').value;
+  const stunden=parseFloat(document.getElementById('r-stunden').value);
+  const beschreibung=document.getElementById('r-beschreibung').value.trim();
+  const datum=document.getElementById('r-datum').value;
+  if(!projektId||!stunden||!beschreibung||!selectedLeistung){showErr('Bitte alle Felder ausfüllen.');return;}
+  const btn=document.getElementById('btn-rapport');btn.disabled=true;btn.textContent='⏳ Sende…';
+  const {error}=await db.from('musa_rapporte').insert({projekt_id:projektId,mitarbeiter_id:currentMa.id,datum,stunden,leistung:selectedLeistung,beschreibung,fotos:fotoData.slice(0,3)});
+  if(error){showErr('Fehler: '+error.message);}
+  else{
+    document.getElementById('r-projekt').value='';document.getElementById('r-stunden').value='';
+    document.getElementById('r-beschreibung').value='';document.getElementById('r-stunden-hint').style.display='none';
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+    document.getElementById('foto-previews').innerHTML='';fotoData=[];selectedLeistung=null;
+    document.getElementById('r-datum').value=new Date().toISOString().split('T')[0];
+    showOk('✅ Rapport übermittelt!');
+    setTimeout(()=>goHome(),1200);
+  }
+  btn.disabled=false;btn.textContent='Rapport absenden →';
+}
+
+// ── DASHBOARD ──
+function setFilter(val,el){currentFilter=val;document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderDashboard();}
+
+async function renderDashboard(){
+  const listEl=document.getElementById('projekt-list');
+  listEl.innerHTML='<div class="loading"><div class="spinner"></div><br>Lade…</div>';
+  try{
+    const heute=new Date().toISOString().split('T')[0];
+    const {data:rapporte}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name),musa_projekte(name)').order('created_at',{ascending:false});
+    const rr=rapporte||[];
+    document.getElementById('kpi-p').textContent=projekte.length;
+    document.getElementById('kpi-h').textContent=rr.filter(r=>r.datum===heute).length;
+    document.getElementById('kpi-s').textContent=rr.reduce((s,r)=>s+(r.stunden||0),0).toFixed(1).replace('.0','');
+    document.getElementById('kpi-a').textContent=projekte.filter(p=>p.status==='aktiv'||p.status==='offen').length;
+    let gf=projekte;
+    if(currentFilter!=='alle') gf=projekte.filter(p=>p.leistungen&&p.leistungen.includes(currentFilter));
+    listEl.innerHTML='';
+    if(!gf.length){listEl.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><p>Keine Projekte.</p></div>';return;}
+    const sm={offen:['s-offen','Offen'],aktiv:['s-aktiv','In Arbeit'],abnahme:['s-abnahme','Abnahme'],abgerechnet:['s-abgerechnet','Abgerechnet'],abgeschlossen:['s-abgerechnet','Abgeschlossen']};
+    gf.forEach(p=>{
+      const pR=rr.filter(r=>r.projekt_id===p.id);
+      const sumH=pR.reduce((s,r)=>s+(r.stunden||0),0);
+      const [sc,sl]=sm[p.status]||['s-offen',p.status];
+      const tags=(p.leistungen||[]).map(l=>`<span class="tag">${l}</span>`).join('');
+      const rapHTML=pR.length===0?'<div class="empty-panel">Noch keine Rapporte</div>':pR.map(r=>{
+        const ma=r.musa_mitarbeiter?.name||'—';
+        const d=new Date(r.created_at);
+        const ds=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+        const th=r.fotos&&r.fotos.length>0?`<img src="${r.fotos[0]}" class="rapport-thumb">`:`<div class="rapport-no-thumb">📋</div>`;
+        return `<div class="rapport-item">${th}<div class="rapport-body"><div class="rapport-top"><div class="rapport-name">${ma}</div><div class="rapport-ts">${ds}</div></div><div class="rapport-desc">${r.beschreibung}</div><div class="rapport-meta">⏱ ${r.stunden}h · ${r.leistung}</div></div></div>`;
+      }).join('');
+      const card=document.createElement('div');card.className='projekt-card';
+      card.innerHTML=`
+        <div class="projekt-card-header" onclick="toggleProjekt(this)">
+          <div class="projekt-card-info">
+            <div class="projekt-card-name">${p.name}</div>
+            <div class="projekt-card-meta">${p.kunde}</div>
+            <div class="projekt-card-tags">${tags}</div>
+          </div>
+          <span class="status-pill ${sc}">${sl}</span>
+          <span class="toggle-arrow">▾</span>
+        </div>
+        <div class="projekt-card-footer">
+          <div><div class="projekt-stunden-val">${sumH>0?sumH.toFixed(1)+'h':'—'}</div><div class="projekt-stunden-lbl">Erfasste Stunden</div></div>
+          <button class="btn-zu-rechnung" onclick="event.stopPropagation();zuRechnung('${p.id}')">📄 Rechnung</button>
+        </div>
+        <div class="rapport-panel" id="rp-${p.id}">${rapHTML}</div>`;
+      listEl.appendChild(card);
+    });
+  }catch(e){listEl.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`;}
+}
+
+function toggleProjekt(h){
+  const card=h.closest('.projekt-card');
+  const pid=card.querySelector('.rapport-panel').id;
+  const panel=document.getElementById(pid);
+  const open=panel.classList.contains('open');
+  document.querySelectorAll('.rapport-panel').forEach(p=>p.classList.remove('open'));
+  document.querySelectorAll('.projekt-card').forEach(c=>c.classList.remove('open'));
+  if(!open){panel.classList.add('open');card.classList.add('open');}
+}
+
+function zuRechnung(id){
+  goScreen('rechnungen');
+  setTimeout(()=>{document.getElementById('rneu-projekt').value=id;document.getElementById('neu-form').classList.add('open');},150);
+}
+
+// ── AUSWERTUNG ──
+function setPeriod(p,el){currentPeriod=p;document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAuswertung();}
+
+async function renderAuswertung(){
+  const listEl=document.getElementById('auswertung-list');const geEl=document.getElementById('auswertung-gesamt');
+  listEl.innerHTML='<div class="loading"><div class="spinner"></div><br>Lade…</div>';
+  const heute=new Date();let von;
+  if(currentPeriod==='woche'){const mo=new Date(heute);mo.setDate(heute.getDate()-heute.getDay()+1);von=mo.toISOString().split('T')[0];}
+  else if(currentPeriod==='monat'){von=new Date(heute.getFullYear(),heute.getMonth(),1).toISOString().split('T')[0];}
+  else{von='2000-01-01';}
+  const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name,rolle)').gte('datum',von);
+  const r=rr||[];
+  const gH=r.reduce((s,x)=>s+(x.stunden||0),0);
+  geEl.innerHTML=`<div class="gesamt-karte"><div><div class="gesamt-lbl">${currentPeriod==='woche'?'Diese Woche':currentPeriod==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gesamt-val">${gH.toFixed(1)}h</div></div><div class="gesamt-count"><div class="gesamt-lbl">Rapporte</div><div class="gesamt-count-val">${r.length}</div></div></div>`;
+  const maMap={};
+  r.forEach(x=>{const id=x.mitarbeiter_id;if(!maMap[id])maMap[id]={name:x.musa_mitarbeiter?.name||'—',rolle:x.musa_mitarbeiter?.rolle||'',stunden:0,rapporte:0,tage:new Set()};maMap[id].stunden+=(x.stunden||0);maMap[id].rapporte++;maMap[id].tage.add(x.datum);});
+  const arr=Object.values(maMap).sort((a,b)=>b.stunden-a.stunden);
+  const maxH=arr.length>0?arr[0].stunden:1;
+  if(!arr.length){listEl.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>Keine Daten.</p></div>';return;}
+  listEl.innerHTML=arr.map(ma=>{
+    const pct=Math.round((ma.stunden/maxH)*100);
+    const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[ma.rolle]||ma.rolle;
+    return `<div class="ma-karte"><div class="ma-karte-top"><div><div class="ma-karte-name">${ma.name}</div><span class="ma-karte-rolle">${rl}</span></div><div><div class="ma-karte-std">${ma.stunden.toFixed(1)}</div><div class="ma-karte-std-lbl">Stunden</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="ma-karte-stats"><div class="ma-stat"><div class="ma-stat-val">${ma.rapporte}</div><div class="ma-stat-lbl">Rapporte</div></div><div class="ma-stat"><div class="ma-stat-val">${ma.tage.size}</div><div class="ma-stat-lbl">Einsatztage</div></div><div class="ma-stat"><div class="ma-stat-val">${ma.tage.size>0?(ma.stunden/ma.tage.size).toFixed(1):0}</div><div class="ma-stat-lbl">Ø Std/Tag</div></div></div></div>`;
+  }).join('');
+}
+
+// ── RECHNUNGEN ──
+function toggleNeuForm(){document.getElementById('neu-form').classList.toggle('open');}
+
+async function rechnungSpeichern(){
+  const projektId=document.getElementById('rneu-projekt').value;
+  const typ=document.getElementById('rneu-typ').value;
+  const datum=document.getElementById('rneu-datum').value;
+  const stunden=parseFloat(document.getElementById('rneu-stunden').value)||0;
+  const satz=parseFloat(document.getElementById('rneu-satz').value)||85;
+  const notiz=document.getElementById('rneu-notiz').value;
+  if(!projektId||!datum){showErr('Projekt und Datum ausfüllen.');return;}
+  const netto=stunden*satz,brutto=netto*1.19;
+  const nr='MUSA-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
+  const {error}=await db.from('musa_rechnungen').insert({projekt_id:projektId,rechnungsnummer:nr,typ,datum,stunden_gesamt:stunden,stundensatz:satz,betrag_netto:netto,betrag_brutto:brutto,status:'entwurf',notiz});
+  if(error){showErr('Fehler: '+error.message);return;}
+  document.getElementById('neu-form').classList.remove('open');showOk('✅ Rechnung angelegt!');renderRechnungen();
+}
+
+async function renderRechnungen(){
+  const listEl=document.getElementById('rechnung-list');
+  listEl.innerHTML='<div class="loading"><div class="spinner"></div><br>Lade…</div>';
+  const {data:r}=await db.from('musa_rechnungen').select('*,musa_projekte(name)').order('created_at',{ascending:false});
+  if(!r||!r.length){listEl.innerHTML='<div class="empty"><div class="empty-icon">📄</div><p>Noch keine Rechnungen.</p></div>';return;}
+  const sm={entwurf:['r-entwurf','Entwurf'],gesendet:['r-gesendet','Gesendet'],bezahlt:['r-bezahlt','Bezahlt']};
+  listEl.innerHTML=r.map(x=>{
+    const [sc,sl]=sm[x.status]||['r-entwurf',x.status];
+    const pn=x.musa_projekte?.name||'—';
+    const brutto=x.betrag_brutto?x.betrag_brutto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
+    const netto=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
+    return `<div class="r-card">
+      <div class="r-card-top">
+        <div><div class="r-nr">${x.rechnungsnummer}</div><div class="r-projekt">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div>
+        <div><div class="r-betrag">${brutto}</div><div class="r-betrag-sub">Netto ${netto}</div></div>
+      </div>
+      <div class="r-card-footer">
+        <span class="r-pill ${sc}">${sl}</span>
+        <div class="r-actions">
+          ${x.status==='entwurf'?`<button class="btn-r-action" onclick="rStatus('${x.id}','gesendet')">📤 Gesendet</button>`:''}
+          ${x.status==='gesendet'?`<button class="btn-r-action" style="color:var(--gruen);border-color:var(--gruen);" onclick="rStatus('${x.id}','bezahlt')">✅ Bezahlt</button>`:''}
+          <button class="btn-r-action btn-r-pdf" onclick='pdfErstellen(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button>
+        </div>
+      </div>
+      ${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--grau);padding-top:10px;border-top:1px solid var(--rand);">${x.notiz}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function rStatus(id,status){
+  await db.from('musa_rechnungen').update({status}).eq('id',id);
+  showOk('Status aktualisiert.');renderRechnungen();
+}
+
+// ── PDF ──
+function pdfErstellen(r,pn){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
+  doc.setFillColor(245,158,11);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(24,24,27);doc.setFontSize(18);doc.setFont('helvetica','bold');
+  doc.text('BauDesk · '+pn,14,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Digitales Baustellen-Management · baudesk.de',14,20);
+  doc.setTextColor(30,30,30);doc.setFontSize(15);doc.setFont('helvetica','bold');
+  doc.text(r.typ==='teilrechnung'?'TEILRECHNUNG':'SCHLUSSRECHNUNG',14,44);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text('Nr: '+r.rechnungsnummer,14,52);doc.text('Datum: '+r.datum,14,58);doc.text('Projekt: '+pn,14,64);
+  doc.setDrawColor(245,158,11);doc.setLineWidth(.5);doc.line(14,70,196,70);
+  doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.text('Leistung',14,80);doc.text('Std.',130,80,{align:'right'});doc.text('Satz',160,80,{align:'right'});doc.text('Betrag',196,80,{align:'right'});
+  doc.setDrawColor(200,200,200);doc.line(14,83,196,83);doc.setFont('helvetica','normal');
+  doc.text('Arbeitsleistung',14,91);
+  doc.text((r.stunden_gesamt||0).toFixed(1)+' Std.',130,91,{align:'right'});
+  doc.text(parseFloat(r.stundensatz||85).toFixed(2)+' €',160,91,{align:'right'});
+  doc.text(parseFloat(r.betrag_netto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,91,{align:'right'});
+  if(r.notiz){doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text(r.notiz,14,99);doc.setTextColor(30,30,30);doc.setFontSize(10);}
+  const y=r.notiz?114:106;doc.line(14,y-4,196,y-4);
+  const mwst=parseFloat(r.betrag_netto||0)*.19;
+  doc.text('Nettobetrag:',140,y);doc.text(parseFloat(r.betrag_netto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y,{align:'right'});
+  doc.text('MwSt. 19 %:',140,y+8);doc.text(mwst.toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y+8,{align:'right'});
+  doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.setFillColor(245,240,220);doc.rect(130,y+12,66,10,'F');
+  doc.text('Bruttobetrag:',140,y+20);doc.text(parseFloat(r.betrag_brutto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y+20,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text('Zahlungsziel: 14 Tage netto',14,265);
+  doc.save(r.rechnungsnummer+'.pdf');
+}
+
+// ── TOAST ──
+function showOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>()=>t.classList.remove('show'),3000);}
+function showErr(m){const t=document.getElementById('toast-err');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
 </script>
 </body>
 </html>
