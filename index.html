@@ -704,7 +704,7 @@ body {
     </div>
 
     <div class="home-actions" style="padding:0 20px 40px;">
-      <button class="action-btn primary" onclick="goScreen('stempel')">
+      <button class="action-btn primary" data-screen="stempel">
         <div class="action-icon">⏱</div>
         <div class="action-text">
           <div class="action-title">Arbeitsbeginn / -ende</div>
@@ -713,7 +713,7 @@ body {
         <div class="action-arrow">›</div>
       </button>
 
-      <button class="action-btn" onclick="goScreen('rapport')">
+      <button class="action-btn" data-screen="rapport">
         <div class="action-icon">📋</div>
         <div class="action-text">
           <div class="action-title">Tagesrapport</div>
@@ -722,7 +722,7 @@ body {
         <div class="action-arrow">›</div>
       </button>
 
-      <button class="action-btn pl-only" onclick="goScreen('dashboard')" style="display:none;">
+      <button class="action-btn pl-only" data-screen="dashboard" style="display:none!important;">
         <span class="pl-badge">Projektleiter</span>
         <div class="action-icon">📊</div>
         <div class="action-text">
@@ -732,7 +732,7 @@ body {
         <div class="action-arrow">›</div>
       </button>
 
-      <button class="action-btn pl-only" onclick="goScreen('auswertung')" style="display:none;">
+      <button class="action-btn pl-only" data-screen="auswertung" style="display:none!important;">
         <div class="action-icon">📈</div>
         <div class="action-text">
           <div class="action-title">Auswertung</div>
@@ -741,7 +741,7 @@ body {
         <div class="action-arrow">›</div>
       </button>
 
-      <button class="action-btn pl-only" onclick="goScreen('rechnungen')" style="display:none;">
+      <button class="action-btn pl-only" data-screen="rechnungen" style="display:none!important;">
         <div class="action-icon">📄</div>
         <div class="action-text">
           <div class="action-title">Rechnungen</div>
@@ -972,10 +972,12 @@ async function startApp(ma){
   document.getElementById('app').style.display='block';
   document.getElementById('user-name').textContent=ma.name;
   document.getElementById('user-rolle').textContent=(ma.rolle||'')+'  ·  Abmelden';
-  // PL-only Buttons
-  if(ma.rolle!=='monteur'){
-    document.querySelectorAll('.pl-only').forEach(el=>el.style.display='flex');
-  }
+  // PL-only Buttons — nur für nicht-Monteure sichtbar
+  document.querySelectorAll('.pl-only').forEach(function(el) {
+    el.style.display = (ma.rolle !== 'monteur') ? 'flex' : 'none';
+  });
+  // Nach Anzeige Buttons neu binden
+  bindActionButtons();
   // Home Begrüssung
   const h=new Date().getHours();
   const gt=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
@@ -1385,15 +1387,21 @@ function pdfErstellen(r,pn){
 }
 
 // ── iOS TOUCH FIX ──
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('.action-btn').forEach(function(btn){
-    btn.addEventListener('touchend', function(e){
-      e.preventDefault();
-      var onclick = btn.getAttribute('onclick');
-      if(onclick) eval(onclick);
+function bindActionButtons() {
+  document.querySelectorAll('.action-btn[data-screen]').forEach(function(btn) {
+    ['click','touchend'].forEach(function(evt) {
+      btn.addEventListener(evt, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var screen = btn.getAttribute('data-screen');
+        if (screen) goScreen(screen);
+      }, {passive: false});
     });
   });
-});
+}
+document.addEventListener('DOMContentLoaded', bindActionButtons);
+// Auch direkt aufrufen falls DOM schon geladen
+if (document.readyState !== 'loading') bindActionButtons();
 
 // ── TOAST ──
 function showOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>()=>t.classList.remove('show'),3000);}
