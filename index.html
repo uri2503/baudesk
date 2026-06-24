@@ -2,1456 +2,964 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>BauDesk</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root {
-  --kohle: #18181B;
-  --kohle2: #232329;
-  --kohle3: #2E2E36;
-  --amber: #F59E0B;
-  --amber-light: #FCD34D;
-  --amber-dark: #D97706;
-  --weiss: #FFFFFF;
-  --grau: #A1A1AA;
-  --rand: #3F3F46;
-  --hell: #F4F4F5;
-  --gruen: #22C55E;
-  --rot: #EF4444;
-  --blau: #3B82F6;
-  --text: #E4E4E7;
+:root{
+  --k:#18181B;--k2:#232329;--k3:#2E2E36;
+  --a:#F59E0B;--al:#FCD34D;--ad:#D97706;
+  --w:#FFFFFF;--g:#A1A1AA;--r:#3F3F46;
+  --gr:#22C55E;--rt:#EF4444;--bl:#3B82F6;
+  --tx:#E4E4E7;
 }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--k);}
+body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; }
-body {
-  font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--kohle);
-  color: var(--weiss);
-  min-height: 100vh;
+/* ── LOGIN ── */
+#login{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--k);padding:24px;z-index:100;
 }
+.l-mark{text-align:center;margin-bottom:36px;}
+.l-logo{width:72px;height:72px;background:var(--a);border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;font-weight:900;color:var(--k);margin:0 auto 12px;letter-spacing:-1px;}
+.l-name{font-size:24px;font-weight:900;letter-spacing:-0.03em;}
+.l-sub{font-size:12px;color:var(--g);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px;}
+.l-card{background:var(--k2);border:1px solid var(--r);border-radius:20px;padding:24px;width:100%;max-width:320px;}
+.l-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;
+  font-size:13px;padding:10px 12px;border-radius:10px;margin-bottom:14px;display:none;}
+.lf{margin-bottom:14px;}
+.lf label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--g);margin-bottom:7px;}
+.lf select,.lf input{width:100%;padding:13px 14px;background:var(--k3);
+  border:1px solid var(--r);border-radius:10px;font-size:15px;color:var(--w);
+  font-family:'Inter',sans-serif;appearance:none;-webkit-appearance:none;}
+.lf select:focus,.lf input:focus{outline:none;border-color:var(--a);}
+.lf select option{background:var(--k3);}
+.pin-inp{font-size:26px!important;letter-spacing:.5em!important;text-align:center!important;font-weight:700!important;}
+.btn-login{width:100%;padding:15px;background:var(--a);color:var(--k);border:none;
+  border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;
+  font-family:'Inter',sans-serif;margin-top:4px;}
+.btn-login:disabled{background:var(--r);color:var(--g);}
+.l-hint{font-size:11px;color:var(--g);text-align:center;margin-top:14px;line-height:1.7;}
+.l-hint b{color:var(--a);}
 
-/* ══════════════════════════════
-   LOGIN
-══════════════════════════════ */
-#login-screen {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  min-height: 100vh; padding: 24px;
-  background: var(--kohle);
+/* ── APP SHELL ── */
+#app{
+  position:fixed;inset:0;
+  display:none;flex-direction:column;
 }
-
-.login-mark {
-  margin-bottom: 40px; text-align: center;
-}
-
-/* SVG Logo — Zirkelzeichen */
-.login-mark svg { display: block; margin: 0 auto 14px; }
-
-.login-mark-name {
-  font-size: 22px; font-weight: 800;
-  letter-spacing: -0.02em; color: var(--weiss);
-}
-
-.login-mark-sub {
-  font-size: 12px; color: var(--grau);
-  letter-spacing: 0.12em; text-transform: uppercase;
-  margin-top: 3px;
-}
-
-.login-card {
-  background: var(--kohle2);
-  border: 1px solid var(--rand);
-  border-radius: 20px; padding: 28px 24px;
-  width: 100%; max-width: 340px;
-}
-
-.login-err {
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.3);
-  color: #FCA5A5; font-size: 13px;
-  padding: 10px 14px; border-radius: 10px;
-  margin-bottom: 16px; display: none;
-}
-
-.lf { margin-bottom: 14px; }
-.lf label {
-  display: block; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--grau); margin-bottom: 7px;
-}
-
-.lf select, .lf input {
-  width: 100%; padding: 13px 14px;
-  background: var(--kohle3); border: 1px solid var(--rand);
-  border-radius: 10px; font-size: 15px; color: var(--weiss);
-  font-family: 'Inter', sans-serif;
-  appearance: none; -webkit-appearance: none;
-}
-.lf select:focus, .lf input:focus {
-  outline: none; border-color: var(--amber);
-}
-.lf select option { background: var(--kohle3); }
-
-.pin-input {
-  font-size: 26px !important; letter-spacing: 0.5em !important;
-  text-align: center !important; font-weight: 700 !important;
-}
-
-.btn-login {
-  width: 100%; padding: 15px;
-  background: var(--amber); color: var(--kohle);
-  border: none; border-radius: 10px;
-  font-size: 15px; font-weight: 800;
-  cursor: pointer; font-family: 'Inter', sans-serif;
-  margin-top: 6px; letter-spacing: -0.01em;
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-login:hover { background: var(--amber-light); }
-.btn-login:active { transform: scale(0.98); }
-.btn-login:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
-
-.login-hint {
-  font-size: 11px; color: var(--grau);
-  text-align: center; margin-top: 16px; line-height: 1.7;
-}
-.login-hint b { color: var(--amber); }
-
-/* ══════════════════════════════
-   APP SHELL
-══════════════════════════════ */
-#app { display: none; }
+#app.on{display:flex;}
 
 /* Header */
-.app-header {
-  background: var(--kohle2);
-  border-bottom: 1px solid var(--rand);
-  padding: 0 16px; height: 54px;
-  display: flex; align-items: center;
-  justify-content: space-between;
-  position: sticky; top: 0; z-index: 50;
+.hdr{
+  flex-shrink:0;
+  background:var(--k2);border-bottom:1px solid var(--r);
+  padding:0 16px;height:54px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.hdr-logo{display:flex;align-items:center;gap:9px;}
+.hdr-icon{width:30px;height:30px;background:var(--a);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:900;color:var(--k);}
+.hdr-name{font-size:15px;font-weight:800;letter-spacing:-.02em;}
+.hdr-user{text-align:right;cursor:pointer;}
+.hdr-un{font-size:13px;font-weight:700;}
+.hdr-ur{font-size:10px;font-weight:700;color:var(--a);text-transform:uppercase;letter-spacing:.08em;}
+
+/* Content area — scrollt */
+.content{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:var(--k);
 }
 
-.app-logo {
-  display: flex; align-items: center; gap: 10px;
+/* Tab Bar unten */
+.tabbar{
+  flex-shrink:0;
+  background:var(--k2);border-top:1px solid var(--r);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
 }
-.app-logo svg { flex-shrink: 0; }
-.app-logo-name { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
-
-.app-user {
-  display: flex; flex-direction: column; align-items: flex-end;
-  cursor: pointer;
+.tb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:10px 4px 8px;
+  cursor:pointer;border:none;background:none;
+  font-family:'Inter',sans-serif;color:var(--g);
+  font-size:10px;font-weight:600;gap:4px;
+  transition:color .15s;
 }
-.app-user-name { font-size: 13px; font-weight: 700; color: var(--weiss); }
-.app-user-rolle {
-  font-size: 10px; font-weight: 600; color: var(--amber);
-  text-transform: uppercase; letter-spacing: 0.08em;
+.tb.active{color:var(--a);}
+.tb-icon{font-size:20px;line-height:1;}
+.tb.pl-tab{display:none;}
+
+/* ── TABS ── */
+.tab{display:none;}
+.tab.active{display:block;}
+
+/* ── HOME ── */
+.home{padding:24px 20px 16px;}
+.home-sub{font-size:12px;font-weight:700;color:var(--a);
+  text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px;}
+.home-name{font-size:28px;font-weight:900;letter-spacing:-.03em;line-height:1.1;}
+.home-date{font-size:13px;color:var(--g);margin-top:4px;}
+
+.home-banner{
+  margin:16px 20px 0;border-radius:14px;padding:14px 16px;
+  background:var(--k2);border:1px solid var(--r);
+  display:flex;align-items:center;gap:12px;
 }
+.home-banner.on{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25);}
+.hb-dot{width:9px;height:9px;border-radius:50%;background:var(--g);flex-shrink:0;}
+.home-banner.on .hb-dot{background:var(--gr);animation:pu 2s infinite;}
+@keyframes pu{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.3);}50%{box-shadow:0 0 0 6px rgba(34,197,94,0);}}
+.hb-txt{flex:1;}
+.hb-lbl{font-size:11px;color:var(--g);}
+.hb-val{font-size:13px;font-weight:700;margin-top:1px;}
+.hb-timer{font-size:15px;font-weight:800;color:var(--gr);font-variant-numeric:tabular-nums;}
 
-/* ══════════════════════════════
-   HOME SCREEN (Monteur Einstieg)
-══════════════════════════════ */
-#screen-home {
-  display: flex; flex-direction: column;
-  padding: 28px 20px 40px;
+.home-btns{padding:16px 20px 24px;display:flex;flex-direction:column;gap:12px;}
+.hbtn{
+  display:flex;align-items:center;gap:16px;
+  background:var(--k2);border:1px solid var(--r);border-radius:16px;
+  padding:20px 18px;cursor:pointer;transition:border-color .15s;
 }
+.hbtn:active{opacity:.8;}
+.hbtn.prim{background:var(--a);border-color:var(--a);}
+.hbtn-icon{width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.hbtn.prim .hbtn-icon{background:rgba(0,0,0,.12);}
+.hbtn-txt{flex:1;}
+.hbtn-t{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--w);}
+.hbtn.prim .hbtn-t{color:var(--k);}
+.hbtn-s{font-size:12px;opacity:.6;margin-top:2px;font-weight:500;color:var(--w);}
+.hbtn.prim .hbtn-s{color:var(--k);}
+.hbtn-arr{font-size:18px;color:rgba(255,255,255,.3);}
+.hbtn.prim .hbtn-arr{color:rgba(0,0,0,.3);}
 
-.home-greet {
-  margin-bottom: 36px;
-}
-.home-greet-sub {
-  font-size: 12px; font-weight: 600; color: var(--amber);
-  text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
-}
-.home-greet-name {
-  font-size: 30px; font-weight: 900; letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-.home-greet-date {
-  font-size: 13px; color: var(--grau); margin-top: 4px;
-}
+/* ── STEMPEL ── */
+.stempel{padding:16px 16px 32px;}
+.uhr-card{background:var(--k2);border:1px solid var(--r);border-radius:20px;overflow:hidden;margin-bottom:16px;}
+.uhr-face{background:var(--k3);padding:28px 20px 20px;text-align:center;}
+.uhr-zeit{font-size:54px;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.uhr-dat{font-size:13px;color:var(--g);margin-top:5px;}
+.uhr-lauf{font-size:17px;font-weight:800;color:var(--gr);margin-top:8px;font-variant-numeric:tabular-nums;min-height:24px;}
+.uhr-heute{font-size:13px;color:var(--a);font-weight:700;margin-top:4px;}
+.uhr-body{padding:16px;}
+.uhr-st{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-radius:8px;background:var(--k3);margin-bottom:14px;
+  font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;}
+.uhr-st-dot{width:7px;height:7px;border-radius:50%;background:var(--g);flex-shrink:0;}
+.uhr-st.on .uhr-st-dot{background:var(--gr);animation:pu 2s infinite;}
+.uhr-st.on{color:var(--gr);}
+.uhr-st.off{color:var(--g);}
+.uhr-proj{margin-bottom:14px;}
+.fl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--g);margin-bottom:7px;display:block;}
+.fs,.fi,.ft{width:100%;padding:13px 14px;background:var(--k3);border:1px solid var(--r);
+  border-radius:10px;font-size:15px;color:var(--w);
+  font-family:'Inter',sans-serif;appearance:none;-webkit-appearance:none;}
+.fs:focus,.fi:focus,.ft:focus{outline:none;border-color:var(--a);}
+.fs option{background:var(--k3);}
+.ft{min-height:90px;resize:vertical;line-height:1.5;}
+.uhr-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn-k{padding:18px;background:var(--gr);color:var(--k);border:none;
+  border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;}
+.btn-k:disabled{background:var(--r);color:var(--g);}
+.btn-g{padding:18px;background:var(--rt);color:var(--w);border:none;
+  border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;}
+.btn-g:disabled{background:var(--r);color:var(--g);}
+.hist-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--g);margin:16px 0 8px;}
+.hist-row{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 14px;border-radius:10px;background:var(--k2);
+  border:1px solid var(--r);margin-bottom:8px;cursor:pointer;}
+.hist-row:active{opacity:.7;}
+.hist-pn{font-size:13px;font-weight:700;}
+.hist-m{font-size:11px;color:var(--g);margin-top:2px;}
+.hist-r{display:flex;align-items:center;gap:8px;}
+.hist-h{font-size:15px;font-weight:800;color:var(--a);}
+.hist-badge{font-size:9px;font-weight:800;color:var(--a);
+  background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);
+  padding:2px 6px;border-radius:4px;text-transform:uppercase;}
 
-/* Stempel-Status Banner */
-.stempel-banner {
-  border-radius: 14px; padding: 16px 18px;
-  margin-bottom: 28px;
-  display: flex; align-items: center; gap: 14px;
-  border: 1px solid var(--rand);
-  background: var(--kohle2);
-}
-.stempel-banner.aktiv {
-  background: rgba(34,197,94,0.08);
-  border-color: rgba(34,197,94,0.25);
-}
-.stempel-banner-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--grau); flex-shrink: 0;
-}
-.stempel-banner.aktiv .stempel-banner-dot {
-  background: var(--gruen);
-  box-shadow: 0 0 0 3px rgba(34,197,94,0.2);
-  animation: puls 2s infinite;
-}
-@keyframes puls { 0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,0.2);} 50%{box-shadow:0 0 0 6px rgba(34,197,94,0.1);} }
-.stempel-banner-text { flex: 1; }
-.stempel-banner-label { font-size: 12px; color: var(--grau); font-weight: 500; }
-.stempel-banner-info { font-size: 14px; font-weight: 700; color: var(--weiss); margin-top: 1px; }
-.stempel-banner-timer { font-size: 16px; font-weight: 800; color: var(--gruen); font-variant-numeric: tabular-nums; }
+/* ── RAPPORT ── */
+.rapport{padding:16px 16px 40px;}
+.fg{margin-bottom:18px;}
+.chip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.chip{padding:11px 8px;background:var(--k2);border:1px solid var(--r);
+  border-radius:10px;font-size:12px;font-weight:600;color:var(--g);
+  cursor:pointer;text-align:center;user-select:none;}
+.chip.on{background:var(--a);border-color:var(--a);color:var(--k);font-weight:800;}
+.zr{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sh{font-size:11px;color:var(--gr);font-weight:600;margin-top:5px;display:none;}
+.foto-z{border:2px dashed var(--r);border-radius:12px;background:var(--k2);
+  text-align:center;padding:20px 16px;cursor:pointer;}
+.foto-z input{display:none;}
+.foto-z-i{font-size:26px;margin-bottom:4px;}
+.foto-z-t{font-size:13px;color:var(--g);}
+.foto-z-s{font-size:11px;color:var(--a);font-weight:600;margin-top:3px;}
+.foto-prev{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;}
+.foto-thumb{aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--r);width:100%;}
+.btn-send{width:100%;padding:17px;background:var(--a);color:var(--k);border:none;
+  border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;
+  margin-top:20px;font-family:'Inter',sans-serif;}
+.btn-send:disabled{background:var(--r);color:var(--g);}
 
-/* Home Action Buttons */
-.home-actions { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+/* ── DASHBOARD ── */
+.dash{padding:16px;}
+.kpi-g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.kpi{background:var(--k2);border:1px solid var(--r);border-radius:14px;padding:14px;}
+.kpi-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--g);margin-bottom:5px;}
+.kpi-v{font-size:28px;font-weight:900;letter-spacing:-.02em;}
+.kpi-v.a{color:var(--a);}
+.fil-r{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;}
+.fil-r::-webkit-scrollbar{display:none;}
+.fc{flex-shrink:0;padding:6px 14px;background:var(--k2);border:1px solid var(--r);
+  border-radius:20px;font-size:12px;font-weight:600;color:var(--g);cursor:pointer;white-space:nowrap;}
+.fc.on{background:var(--a);border-color:var(--a);color:var(--k);font-weight:800;}
+.pk{background:var(--k2);border:1px solid var(--r);border-radius:14px;overflow:hidden;margin-bottom:10px;}
+.ph{padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.pi{flex:1;min-width:0;}
+.pn{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pm{font-size:12px;color:var(--g);margin-top:2px;}
+.ptags{margin-top:4px;}
+.ptag{display:inline-block;background:var(--k3);border:1px solid var(--r);
+  color:var(--g);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
+  text-transform:uppercase;margin-right:3px;margin-top:2px;}
+.sp{flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;}
+.so{background:rgba(245,158,11,.12);color:var(--a);border:1px solid rgba(245,158,11,.25);}
+.sa{background:rgba(59,130,246,.12);color:var(--bl);border:1px solid rgba(59,130,246,.25);}
+.sab{background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.25);}
+.sg{background:rgba(161,161,170,.1);color:var(--g);border:1px solid var(--r);}
+.parr{font-size:15px;color:var(--g);transition:transform .2s;}
+.pk.op .parr{transform:rotate(180deg);}
+.pf{padding:10px 14px;border-top:1px solid var(--r);
+  display:flex;align-items:center;justify-content:space-between;}
+.pstd{font-size:16px;font-weight:800;color:var(--a);}
+.pstdl{font-size:10px;color:var(--g);text-transform:uppercase;}
+.btn-pr{padding:7px 14px;background:var(--k3);color:var(--w);border:1px solid var(--r);
+  border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+.rp{display:none;border-top:1px solid var(--r);}
+.pk.op .rp{display:block;}
+.ri{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--r);align-items:flex-start;}
+.ri:last-child{border-bottom:none;}
+.rt{width:46px;height:46px;object-fit:cover;border-radius:7px;border:1px solid var(--r);flex-shrink:0;}
+.rnt{width:46px;height:46px;border-radius:7px;border:1px solid var(--r);flex-shrink:0;
+  background:var(--k3);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.rb{flex:1;min-width:0;}
+.rtp{display:flex;justify-content:space-between;gap:8px;}
+.rnm{font-size:13px;font-weight:700;}
+.rts{font-size:11px;color:var(--g);white-space:nowrap;}
+.rdesc{font-size:13px;color:var(--tx);margin-top:3px;line-height:1.4;}
+.rmeta{font-size:11px;color:var(--a);font-weight:700;margin-top:4px;}
+.empty-p{padding:16px;text-align:center;font-size:13px;color:var(--g);}
 
-.action-btn {
-  display: flex; align-items: center; gap: 18px;
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 16px; padding: 22px 20px;
-  cursor: pointer; transition: all 0.15s;
-  text-align: left; width: 100%;
-  font-family: 'Inter', sans-serif;
-  text-decoration: none; color: var(--weiss);
-  position: relative; overflow: hidden;
-  -webkit-tap-highlight-color: rgba(0,0,0,0);
-  touch-action: manipulation;
-  cursor: pointer;
-}
-.action-btn:active { transform: scale(0.98); }
-.action-btn:hover { border-color: var(--amber); }
+/* ── AUSWERTUNG ── */
+.ausw{padding:16px;}
+.pt{display:flex;background:var(--k2);border:1px solid var(--r);
+  border-radius:12px;padding:4px;gap:4px;margin-bottom:16px;}
+.ptb{flex:1;padding:9px;border:none;background:none;color:var(--g);
+  font-size:13px;font-weight:600;cursor:pointer;border-radius:9px;font-family:'Inter',sans-serif;}
+.ptb.on{background:var(--a);color:var(--k);font-weight:800;}
+.gk{background:var(--k2);border:1px solid var(--r);border-radius:14px;padding:18px;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:12px;}
+.gv{font-size:34px;font-weight:900;color:var(--a);letter-spacing:-.02em;}
+.gl{font-size:11px;color:var(--g);text-transform:uppercase;letter-spacing:.08em;}
+.gc{text-align:right;}
+.gcv{font-size:26px;font-weight:900;}
+.mak{background:var(--k2);border:1px solid var(--r);border-radius:14px;padding:15px;margin-bottom:10px;}
+.mat{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.man{font-size:15px;font-weight:700;}
+.mar{font-size:10px;font-weight:700;text-transform:uppercase;background:var(--k3);
+  border:1px solid var(--r);padding:2px 7px;border-radius:4px;color:var(--g);margin-top:3px;display:inline-block;}
+.mav{font-size:28px;font-weight:900;color:var(--a);text-align:right;letter-spacing:-.02em;}
+.mavl{font-size:10px;color:var(--g);text-align:right;}
+.bar-t{height:6px;background:var(--k3);border-radius:3px;overflow:hidden;margin-bottom:10px;}
+.bar-f{height:100%;background:var(--a);border-radius:3px;}
+.mas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.masv{font-size:17px;font-weight:800;text-align:center;}
+.masl{font-size:10px;color:var(--g);text-transform:uppercase;text-align:center;margin-top:1px;}
 
-.action-btn.primary {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--kohle);
-}
-.action-btn.primary:hover { background: var(--amber-light); border-color: var(--amber-light); }
+/* ── RECHNUNGEN ── */
+.rech{padding:16px;}
+.btn-nr{width:100%;padding:14px;border:2px dashed var(--r);border-radius:12px;
+  background:none;color:var(--g);font-size:14px;font-weight:700;cursor:pointer;
+  font-family:'Inter',sans-serif;margin-bottom:14px;}
+.btn-nr:active{border-color:var(--a);color:var(--a);}
+.nf{background:var(--k2);border:1px solid var(--r);border-radius:14px;
+  padding:16px;margin-bottom:14px;display:none;}
+.nf.on{display:block;}
+.nft{font-size:14px;font-weight:800;margin-bottom:14px;}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.ff{margin-bottom:12px;}
+.rc{background:var(--k2);border:1px solid var(--r);border-radius:14px;padding:15px;margin-bottom:10px;}
+.rct{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.rcnr{font-size:14px;font-weight:800;}
+.rcpr{font-size:13px;color:var(--g);margin-top:2px;}
+.rcb{font-size:20px;font-weight:900;color:var(--a);text-align:right;letter-spacing:-.02em;}
+.rcbs{font-size:11px;color:var(--g);text-align:right;}
+.rcf{display:flex;align-items:center;justify-content:space-between;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--r);flex-wrap:wrap;gap:8px;}
+.rpi{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;}
+.rp-e{background:rgba(161,161,170,.1);color:var(--g);border:1px solid var(--r);}
+.rp-s{background:rgba(59,130,246,.1);color:var(--bl);border:1px solid rgba(59,130,246,.3);}
+.rp-b{background:rgba(34,197,94,.1);color:var(--gr);border:1px solid rgba(34,197,94,.3);}
+.ra{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-ra{padding:7px 13px;border-radius:8px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:'Inter',sans-serif;border:1px solid var(--r);
+  background:var(--k3);color:var(--w);}
+.btn-pdf{background:var(--a);color:var(--k);border-color:var(--a);}
 
-.action-icon {
-  width: 52px; height: 52px; border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px; flex-shrink: 0;
-  background: rgba(255,255,255,0.08);
-}
-.action-btn.primary .action-icon { background: rgba(0,0,0,0.12); }
+/* SHARED */
+.sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--g);margin-bottom:8px;display:block;}
+.load{text-align:center;padding:40px;color:var(--g);}
+.sp{display:inline-block;width:22px;height:22px;border:3px solid var(--r);
+  border-top-color:var(--a);border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:40px 20px;color:var(--g);}
+.ei{font-size:40px;margin-bottom:10px;}
 
-.action-text { flex: 1; }
-.action-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
-.action-sub { font-size: 12px; opacity: 0.65; margin-top: 2px; font-weight: 500; }
-
-.action-arrow { font-size: 20px; opacity: 0.4; }
-
-/* PL-Badge auf Dashboard Button */
-.pl-badge {
-  position: absolute; top: 12px; right: 14px;
-  font-size: 9px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--amber);
-  background: rgba(245,158,11,0.12);
-  border: 1px solid rgba(245,158,11,0.25);
-  padding: 2px 7px; border-radius: 20px;
-}
-
-/* ══════════════════════════════
-   SCREENS (Stempel / Rapport / Dashboard / Auswertung / Rechnungen)
-══════════════════════════════ */
-.screen { display: none !important; }
-.screen.active { display: block !important; }
-
-/* Back Button */
-.screen-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px 0; margin-bottom: 4px;
-}
-.btn-back {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: var(--kohle2); border: 1px solid var(--rand);
-  color: var(--weiss); font-size: 18px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.screen-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
-
-/* ══════════════════════════════
-   STEMPELUHR SCREEN
-══════════════════════════════ */
-.stempel-wrap { padding: 16px; }
-
-.uhr-card {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 20px; overflow: hidden; margin-bottom: 16px;
-}
-
-.uhr-face {
-  background: var(--kohle3); padding: 32px 20px 28px;
-  text-align: center;
-}
-.uhr-zeit {
-  font-size: 56px; font-weight: 900; line-height: 1;
-  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
-  color: var(--weiss);
-}
-.uhr-datum { font-size: 13px; color: var(--grau); margin-top: 6px; font-weight: 500; }
-.uhr-laufzeit {
-  font-size: 18px; font-weight: 800; color: var(--gruen);
-  margin-top: 10px; font-variant-numeric: tabular-nums;
-  min-height: 26px;
-}
-
-.uhr-body { padding: 16px; }
-
-.uhr-status {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; margin-bottom: 14px;
-  padding: 8px 12px; border-radius: 8px; background: var(--kohle3);
-}
-.uhr-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grau); flex-shrink: 0; }
-.uhr-status.ein .uhr-status-dot { background: var(--gruen); animation: puls 2s infinite; }
-.uhr-status.ein { color: var(--gruen); }
-.uhr-status.aus { color: var(--grau); }
-
-.uhr-projekt { margin-bottom: 14px; }
-
-.uhr-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-
-.btn-kommen {
-  padding: 18px; background: var(--gruen); color: var(--kohle);
-  border: none; border-radius: 12px; font-size: 15px; font-weight: 800;
-  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
-}
-.btn-kommen:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
-
-.btn-gehen {
-  padding: 18px; background: var(--rot); color: white;
-  border: none; border-radius: 12px; font-size: 15px; font-weight: 800;
-  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
-}
-.btn-gehen:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
-
-/* History */
-.history-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--grau); margin-bottom: 10px; padding: 0 16px; }
-.history-list { padding: 0 16px 20px; }
-.history-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 11px 0; border-bottom: 1px solid var(--rand); font-size: 13px;
-  transition: opacity 0.15s;
-}
-.history-row:active { opacity: 0.7; }
-.history-row:last-child { border-bottom: none; }
-.history-projekt { font-weight: 600; color: var(--weiss); }
-.history-meta { font-size: 11px; color: var(--grau); margin-top: 1px; }
-.history-std { font-weight: 800; color: var(--amber); font-size: 15px; }
-
-/* ══════════════════════════════
-   RAPPORT SCREEN
-══════════════════════════════ */
-.rapport-wrap { padding: 16px 16px 60px; max-width: 560px; margin: 0 auto; }
-
-.field-group { margin-bottom: 18px; }
-.field-label {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--grau); margin-bottom: 8px;
-  display: block;
-}
-
-.field-select, .field-input, .field-textarea {
-  width: 100%; padding: 13px 14px;
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 12px; font-size: 15px; color: var(--weiss);
-  font-family: 'Inter', sans-serif;
-  appearance: none; -webkit-appearance: none;
-}
-.field-select:focus, .field-input:focus, .field-textarea:focus {
-  outline: none; border-color: var(--amber);
-}
-.field-select option { background: var(--kohle2); }
-.field-textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
-
-.chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.chip {
-  padding: 11px 8px; background: var(--kohle2);
-  border: 1px solid var(--rand); border-radius: 10px;
-  font-size: 12px; font-weight: 600; color: var(--grau);
-  cursor: pointer; text-align: center;
-  transition: all 0.15s; user-select: none;
-}
-.chip.selected { background: var(--amber); border-color: var(--amber); color: var(--kohle); font-weight: 800; }
-
-.zeit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.stunden-from-stempel { font-size: 11px; color: var(--gruen); font-weight: 600; margin-top: 5px; }
-
-.foto-zone {
-  border: 2px dashed var(--rand); border-radius: 12px;
-  background: var(--kohle2); text-align: center; padding: 24px 16px;
-  cursor: pointer; transition: border-color 0.15s;
-}
-.foto-zone:hover { border-color: var(--amber); }
-.foto-zone input { display: none; }
-.foto-zone-icon { font-size: 28px; margin-bottom: 6px; }
-.foto-zone-text { font-size: 13px; color: var(--grau); }
-.foto-zone-sub { font-size: 11px; color: var(--amber); margin-top: 3px; font-weight: 600; }
-
-.foto-previews { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 10px; }
-.foto-thumb { aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--rand); width:100%; }
-
-.btn-senden {
-  width: 100%; padding: 17px; background: var(--amber); color: var(--kohle);
-  border: none; border-radius: 12px; font-size: 16px; font-weight: 800;
-  cursor: pointer; margin-top: 24px; font-family: 'Inter', sans-serif;
-  letter-spacing: -0.01em; transition: all 0.15s;
-}
-.btn-senden:hover { background: var(--amber-light); }
-.btn-senden:disabled { background: var(--rand); color: var(--grau); cursor: not-allowed; }
-
-/* ══════════════════════════════
-   DASHBOARD SCREEN
-══════════════════════════════ */
-.dashboard-wrap { padding: 16px; max-width: 900px; margin: 0 auto; }
-
-.kpi-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 20px; }
-@media(min-width:600px){ .kpi-grid { grid-template-columns: repeat(4,1fr); } }
-
-.kpi-card {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 14px; padding: 16px;
-}
-.kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--grau); margin-bottom: 6px; }
-.kpi-val { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; color: var(--weiss); }
-.kpi-val.amber { color: var(--amber); }
-
-.filter-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; scrollbar-width: none; }
-.filter-row::-webkit-scrollbar { display: none; }
-.filter-chip {
-  flex-shrink: 0; padding: 7px 14px;
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 20px; font-size: 12px; font-weight: 600;
-  color: var(--grau); cursor: pointer; white-space: nowrap; transition: all 0.15s;
-}
-.filter-chip.active { background: var(--amber); border-color: var(--amber); color: var(--kohle); font-weight: 800; }
-
-.projekt-list { display: flex; flex-direction: column; gap: 10px; }
-.projekt-card {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 16px; overflow: hidden; transition: border-color 0.15s;
-}
-.projekt-card:hover { border-color: var(--amber); }
-
-.projekt-card-header {
-  padding: 16px; display: flex; align-items: center;
-  justify-content: space-between; gap: 10px; cursor: pointer;
-}
-.projekt-card-info { flex: 1; min-width: 0; }
-.projekt-card-name { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.projekt-card-meta { font-size: 12px; color: var(--grau); margin-top: 2px; }
-.projekt-card-tags { margin-top: 5px; }
-
-.tag {
-  display: inline-block; background: var(--kohle3);
-  border: 1px solid var(--rand); color: var(--grau);
-  font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
-  padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
-  margin-right: 4px; margin-top: 3px;
-}
-
-.status-pill {
-  flex-shrink: 0; padding: 4px 10px; border-radius: 20px;
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-}
-.s-offen { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
-.s-aktiv { background: rgba(59,130,246,0.12); color: var(--blau); border: 1px solid rgba(59,130,246,0.25); }
-.s-abnahme { background: rgba(34,197,94,0.12); color: var(--gruen); border: 1px solid rgba(34,197,94,0.25); }
-.s-abgerechnet { background: rgba(161,161,170,0.1); color: var(--grau); border: 1px solid var(--rand); }
-
-.toggle-arrow { font-size: 16px; color: var(--grau); transition: transform 0.2s; }
-.projekt-card.open .toggle-arrow { transform: rotate(180deg); }
-
-.projekt-card-footer {
-  padding: 10px 16px; border-top: 1px solid var(--rand);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.projekt-stunden-val { font-size: 16px; font-weight: 800; color: var(--amber); }
-.projekt-stunden-lbl { font-size: 10px; color: var(--grau); font-weight: 600; text-transform: uppercase; }
-.btn-zu-rechnung {
-  padding: 7px 14px; background: var(--kohle3); color: var(--weiss);
-  border: 1px solid var(--rand); border-radius: 8px;
-  font-size: 12px; font-weight: 700; cursor: pointer;
-  font-family: 'Inter', sans-serif; transition: all 0.15s;
-}
-.btn-zu-rechnung:hover { border-color: var(--amber); color: var(--amber); }
-
-.rapport-panel { display: none; border-top: 1px solid var(--rand); }
-.rapport-panel.open { display: block; }
-
-.rapport-item {
-  display: flex; gap: 12px; padding: 12px 16px;
-  border-bottom: 1px solid var(--rand); align-items: flex-start;
-}
-.rapport-item:last-child { border-bottom: none; }
-.rapport-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid var(--rand); flex-shrink: 0; }
-.rapport-no-thumb {
-  width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--rand);
-  flex-shrink: 0; background: var(--kohle3);
-  display: flex; align-items: center; justify-content: center; font-size: 18px;
-}
-.rapport-body { flex: 1; min-width: 0; }
-.rapport-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
-.rapport-name { font-size: 13px; font-weight: 700; }
-.rapport-ts { font-size: 11px; color: var(--grau); white-space: nowrap; }
-.rapport-desc { font-size: 13px; color: var(--text); margin-top: 3px; line-height: 1.4; }
-.rapport-meta { font-size: 11px; color: var(--amber); font-weight: 700; margin-top: 4px; }
-
-.empty-panel { padding: 20px; text-align: center; font-size: 13px; color: var(--grau); }
-
-/* ══════════════════════════════
-   AUSWERTUNG SCREEN
-══════════════════════════════ */
-.auswertung-wrap { padding: 16px; max-width: 800px; margin: 0 auto; }
-
-.period-tabs { display: flex; background: var(--kohle2); border: 1px solid var(--rand); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 20px; }
-.period-tab {
-  flex: 1; padding: 9px; border: none; background: none;
-  color: var(--grau); font-size: 13px; font-weight: 600;
-  cursor: pointer; border-radius: 9px; font-family: 'Inter', sans-serif;
-  transition: all 0.15s;
-}
-.period-tab.active { background: var(--amber); color: var(--kohle); font-weight: 800; }
-
-.gesamt-karte {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 16px; padding: 20px;
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 16px; flex-wrap: wrap; gap: 16px;
-}
-.gesamt-val { font-size: 36px; font-weight: 900; color: var(--amber); letter-spacing: -0.02em; }
-.gesamt-lbl { font-size: 11px; color: var(--grau); text-transform: uppercase; letter-spacing: 0.08em; }
-.gesamt-count { text-align: right; }
-.gesamt-count-val { font-size: 28px; font-weight: 900; color: var(--weiss); }
-
-.ma-karte {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 14px; padding: 16px; margin-bottom: 10px;
-}
-.ma-karte-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-.ma-karte-name { font-size: 15px; font-weight: 700; }
-.ma-karte-rolle {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--grau); background: var(--kohle3); border: 1px solid var(--rand);
-  padding: 2px 8px; border-radius: 4px; margin-top: 3px; display: inline-block;
-}
-.ma-karte-std { font-size: 28px; font-weight: 900; color: var(--amber); text-align: right; letter-spacing: -0.02em; }
-.ma-karte-std-lbl { font-size: 10px; color: var(--grau); text-align: right; }
-.bar-track { height: 6px; background: var(--kohle3); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
-.bar-fill { height: 100%; background: var(--amber); border-radius: 3px; transition: width 0.8s ease; }
-.ma-karte-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-.ma-stat { text-align: center; }
-.ma-stat-val { font-size: 17px; font-weight: 800; color: var(--weiss); }
-.ma-stat-lbl { font-size: 10px; color: var(--grau); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
-
-/* ══════════════════════════════
-   RECHNUNGEN SCREEN
-══════════════════════════════ */
-.rechnungen-wrap { padding: 16px; max-width: 800px; margin: 0 auto; }
-
-.btn-neu-rechnung {
-  width: 100%; padding: 14px; border: 2px dashed var(--rand);
-  border-radius: 12px; background: none; color: var(--grau);
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  font-family: 'Inter', sans-serif; margin-bottom: 16px;
-  transition: all 0.15s;
-}
-.btn-neu-rechnung:hover { border-color: var(--amber); color: var(--amber); }
-
-.neu-form {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 14px; padding: 18px; margin-bottom: 16px; display: none;
-}
-.neu-form.open { display: block; }
-.neu-form-title { font-size: 14px; font-weight: 800; margin-bottom: 14px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-.form-full { margin-bottom: 12px; }
-
-.r-card {
-  background: var(--kohle2); border: 1px solid var(--rand);
-  border-radius: 14px; padding: 16px; margin-bottom: 10px;
-}
-.r-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.r-nr { font-size: 14px; font-weight: 800; }
-.r-projekt { font-size: 13px; color: var(--grau); margin-top: 2px; }
-.r-betrag { font-size: 22px; font-weight: 900; color: var(--amber); text-align: right; letter-spacing: -0.02em; }
-.r-betrag-sub { font-size: 11px; color: var(--grau); text-align: right; }
-.r-card-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rand);
-  flex-wrap: wrap; gap: 10px;
-}
-.r-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.r-entwurf { background: rgba(161,161,170,0.1); color: var(--grau); border: 1px solid var(--rand); }
-.r-gesendet { background: rgba(59,130,246,0.1); color: var(--blau); border: 1px solid rgba(59,130,246,0.3); }
-.r-bezahlt { background: rgba(34,197,94,0.1); color: var(--gruen); border: 1px solid rgba(34,197,94,0.3); }
-.r-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn-r-action {
-  padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
-  cursor: pointer; font-family: 'Inter', sans-serif; border: 1px solid var(--rand);
-  background: var(--kohle3); color: var(--weiss); transition: all 0.15s;
-}
-.btn-r-action:hover { border-color: var(--amber); color: var(--amber); }
-.btn-r-pdf { background: var(--amber); color: var(--kohle); border-color: var(--amber); }
-.btn-r-pdf:hover { background: var(--amber-light); border-color: var(--amber-light); color: var(--kohle); }
-
-/* ══════════════════════════════
-   TOAST & HELPERS
-══════════════════════════════ */
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-  padding: 13px 22px; border-radius: 12px; font-size: 14px; font-weight: 700;
-  z-index: 999; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  white-space: nowrap; display: none;
-  font-family: 'Inter', sans-serif;
-}
-.toast.show { display: block; }
-.toast-ok { background: var(--gruen); color: var(--kohle); }
-.toast-err { background: var(--rot); color: white; }
-
-.loading { text-align: center; padding: 40px; color: var(--grau); font-size: 14px; }
-.spinner {
-  display: inline-block; width: 22px; height: 22px;
-  border: 3px solid var(--rand); border-top-color: var(--amber);
-  border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 8px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.empty { text-align: center; padding: 48px 20px; color: var(--grau); }
-.empty-icon { font-size: 44px; margin-bottom: 12px; }
-
-/* Field helpers */
-.sub-label { font-size: 11px; color: var(--grau); margin-top: 3px; }
+/* TOAST */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+  padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;
+  z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.4);white-space:nowrap;
+  display:none;font-family:'Inter',sans-serif;}
+.toast.on{display:block;}
+.tok{background:var(--gr);color:var(--k);}
+.ter{background:var(--rt);color:#fff;}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════ LOGIN ══════════════════ -->
-<div id="login-screen" style="display:none;">
-  <div class="login-mark">
-    <!-- Logo: Stilisiertes "BD" Zirkel-Zeichen -->
-    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="64" height="64" rx="16" fill="#F59E0B"/>
-      <path d="M18 16H30C36.627 16 42 21.373 42 28C42 34.627 36.627 40 30 40H18V16Z" fill="#18181B"/>
-      <path d="M18 40H32C38.627 40 44 34.627 44 28C44 21.373 38.627 16 32 16" stroke="#18181B" stroke-width="0" fill="none"/>
-      <rect x="18" y="16" width="4" height="32" fill="#18181B"/>
-      <rect x="18" y="16" width="16" height="4" rx="2" fill="#18181B"/>
-      <rect x="18" y="36" width="14" height="4" rx="2" fill="#18181B"/>
-      <circle cx="30" cy="28" r="8" fill="#F59E0B"/>
-      <circle cx="30" cy="28" r="4" fill="#18181B"/>
-    </svg>
-    <div class="login-mark-name">BauDesk</div>
-    <div class="login-mark-sub">Baustellen · Management</div>
+<!-- LOGIN -->
+<div id="login">
+  <div class="l-mark">
+    <div class="l-logo">BD</div>
+    <div class="l-name">BauDesk</div>
+    <div class="l-sub">Baustellen · Management</div>
   </div>
-
-  <div class="login-card">
-    <div class="login-err" id="login-err"></div>
+  <div class="l-card">
+    <div class="l-err" id="lerr"></div>
     <div class="lf">
       <label>Mitarbeiter</label>
-      <select id="l-name">
-        <option value="">— auswählen —</option>
-      </select>
+      <select id="lname"><option value="">— auswählen —</option></select>
     </div>
     <div class="lf">
       <label>PIN</label>
-      <input type="password" id="l-pin" class="pin-input" placeholder="····" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="password" id="lpin" class="pin-inp" placeholder="····" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-    <button class="btn-login" id="btn-login" onclick="doLogin()">Einloggen →</button>
-    <div class="login-hint">Monteure: PIN <b>1234</b> &nbsp;·&nbsp; Projektleiter: PIN <b>9999</b></div>
+    <button class="btn-login" id="btnlogin" onclick="doLogin()">Einloggen →</button>
+    <div class="l-hint">Monteure: PIN <b>1234</b> &nbsp;·&nbsp; Projektleiter: PIN <b>9999</b></div>
   </div>
 </div>
 
-<!-- ══════════════════ APP ══════════════════ -->
+<!-- APP -->
 <div id="app">
-  <div class="app-header">
-    <div class="app-logo">
-      <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="64" height="64" rx="14" fill="#F59E0B"/>
-        <rect x="18" y="16" width="4" height="32" fill="#18181B"/>
-        <rect x="18" y="16" width="16" height="4" rx="2" fill="#18181B"/>
-        <rect x="18" y="36" width="14" height="4" rx="2" fill="#18181B"/>
-        <circle cx="30" cy="28" r="8" fill="#F59E0B"/>
-        <circle cx="30" cy="28" r="4" fill="#18181B"/>
-      </svg>
-      <span class="app-logo-name">BauDesk</span>
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-logo">
+      <div class="hdr-icon">BD</div>
+      <span class="hdr-name">BauDesk</span>
     </div>
-    <div class="app-user" onclick="doLogout()">
-      <div class="app-user-name" id="user-name">—</div>
-      <div class="app-user-rolle" id="user-rolle">Abmelden</div>
+    <div class="hdr-user" onclick="doLogout()">
+      <div class="hdr-un" id="hun">—</div>
+      <div class="hdr-ur" id="hur">Abmelden</div>
     </div>
   </div>
 
-  <!-- HOME -->
-  <div id="screen-home" class="screen active">
-    <div style="padding:20px 20px 0;">
-      <div class="home-greet">
-        <div class="home-greet-sub" id="home-tageszeit">Guten Morgen</div>
-        <div class="home-greet-name" id="home-name">—</div>
-        <div class="home-greet-date" id="home-datum">—</div>
-      </div>
+  <!-- Content -->
+  <div class="content">
 
-      <!-- Stempel Status -->
-      <div class="stempel-banner" id="home-stempel-banner">
-        <div class="stempel-banner-dot"></div>
-        <div class="stempel-banner-text">
-          <div class="stempel-banner-label">Arbeitsbeginn</div>
-          <div class="stempel-banner-info" id="home-stempel-info">Noch nicht eingestempelt</div>
-        </div>
-        <div class="stempel-banner-timer" id="home-stempel-timer"></div>
+    <!-- HOME TAB -->
+    <div class="tab active" id="tab-home">
+      <div class="home">
+        <div class="home-sub" id="hts">Guten Tag</div>
+        <div class="home-name" id="hn">—</div>
+        <div class="home-date" id="hd">—</div>
       </div>
-    </div>
-
-    <div class="home-actions" style="padding:0 20px 40px;">
-      <div class="action-btn primary" role="button" tabindex="0" onclick="goScreen('stempel')">
-        <div class="action-icon">⏱</div>
-        <div class="action-text">
-          <div class="action-title">Arbeitsbeginn / -ende</div>
-          <div class="action-sub">Stempeluhr starten oder beenden</div>
+      <div class="home-banner" id="hbanner">
+        <div class="hb-dot"></div>
+        <div class="hb-txt">
+          <div class="hb-lbl">Arbeitsbeginn</div>
+          <div class="hb-val" id="hbval">Noch nicht eingestempelt</div>
         </div>
-        <div class="action-arrow">›</div>
+        <div class="hb-timer" id="hbtimer"></div>
       </div>
-
-      <div class="action-btn" role="button" tabindex="0" onclick="goScreen('rapport')">
-        <div class="action-icon">📋</div>
-        <div class="action-text">
-          <div class="action-title">Tagesrapport</div>
-          <div class="action-sub">Was habe ich heute gemacht?</div>
-        </div>
-        <div class="action-arrow">›</div>
-      </div>
-
-      <div class="action-btn pl-only" role="button" tabindex="0" onclick="goScreen('dashboard')" style="display:none!important;">
-        <span class="pl-badge">Projektleiter</span>
-        <div class="action-icon">📊</div>
-        <div class="action-text">
-          <div class="action-title">Dashboard</div>
-          <div class="action-sub">Alle Projekte & Rapporte</div>
-        </div>
-        <div class="action-arrow">›</div>
-      </div>
-
-      <div class="action-btn pl-only" role="button" tabindex="0" onclick="goScreen('auswertung')" style="display:none!important;">
-        <div class="action-icon">📈</div>
-        <div class="action-text">
-          <div class="action-title">Auswertung</div>
-          <div class="action-sub">Stunden pro Mitarbeiter</div>
-        </div>
-        <div class="action-arrow">›</div>
-      </div>
-
-      <div class="action-btn pl-only" role="button" tabindex="0" onclick="goScreen('rechnungen')" style="display:none!important;">
-        <div class="action-icon">📄</div>
-        <div class="action-text">
-          <div class="action-title">Rechnungen</div>
-          <div class="action-sub">Teil- und Schlussrechnungen</div>
-        </div>
-        <div class="action-arrow">›</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEMPEL -->
-  <div id="screen-stempel" class="screen">
-    <div class="screen-header">
-      <button class="btn-back" onclick="goHome()">‹</button>
-      <div class="screen-title">Arbeitsbeginn / -ende</div>
-    </div>
-    <div class="stempel-wrap">
-      <div class="uhr-card">
-        <div class="uhr-face">
-          <div class="uhr-zeit" id="s-uhr">00:00:00</div>
-          <div class="uhr-datum" id="s-datum">—</div>
-          <div class="uhr-laufzeit" id="s-laufzeit"></div>
-        </div>
-        <div class="uhr-body">
-          <div class="uhr-status aus" id="s-status">
-            <div class="uhr-status-dot"></div>
-            <span id="s-status-text">Nicht eingestempelt</span>
+      <div class="home-btns">
+        <div class="hbtn prim" onclick="showTab('stempel')">
+          <div class="hbtn-icon">⏱</div>
+          <div class="hbtn-txt">
+            <div class="hbtn-t">Arbeitsbeginn / -ende</div>
+            <div class="hbtn-s">Stempeluhr starten oder beenden</div>
           </div>
-          <div class="uhr-projekt field-group">
-            <label class="field-label">Projekt</label>
-            <select id="s-projekt" class="field-select">
-              <option value="">— Projekt auswählen —</option>
-            </select>
+          <div class="hbtn-arr">›</div>
+        </div>
+        <div class="hbtn" onclick="showTab('rapport')">
+          <div class="hbtn-icon">📋</div>
+          <div class="hbtn-txt">
+            <div class="hbtn-t">Tagesrapport</div>
+            <div class="hbtn-s">Was habe ich heute gemacht?</div>
           </div>
-          <div class="uhr-btns">
-            <button class="btn-kommen" id="btn-kommen" onclick="stempelKommen()">▶ KOMMEN</button>
-            <button class="btn-gehen" id="btn-gehen" onclick="stempelGehen()" disabled>■ GEHEN</button>
+          <div class="hbtn-arr">›</div>
+        </div>
+        <div class="hbtn pl-btn" onclick="showTab('dashboard')" style="display:none;">
+          <div class="hbtn-icon">📊</div>
+          <div class="hbtn-txt">
+            <div class="hbtn-t">Dashboard</div>
+            <div class="hbtn-s">Alle Projekte & Rapporte</div>
+          </div>
+          <div class="hbtn-arr">›</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEMPEL TAB -->
+    <div class="tab" id="tab-stempel">
+      <div class="stempel">
+        <div class="uhr-card">
+          <div class="uhr-face">
+            <div class="uhr-zeit" id="suhr">00:00:00</div>
+            <div class="uhr-dat" id="sdat">—</div>
+            <div class="uhr-lauf" id="slauf"></div>
+            <div class="uhr-heute" id="sheute">0.0h heute</div>
+          </div>
+          <div class="uhr-body">
+            <div class="uhr-st off" id="sst">
+              <div class="uhr-st-dot"></div>
+              <span id="sstxt">Nicht eingestempelt</span>
+            </div>
+            <div class="uhr-proj fg">
+              <label class="fl">Projekt</label>
+              <select id="sproj" class="fs"></select>
+            </div>
+            <div class="uhr-btns">
+              <button class="btn-k" id="btnk" onclick="stempelKommen()">▶ KOMMEN</button>
+              <button class="btn-g" id="btng" onclick="stempelGehen()" disabled>■ GEHEN</button>
+            </div>
           </div>
         </div>
+        <div class="hist-t">Letzte Einträge</div>
+        <div id="shist"></div>
       </div>
-      <div class="history-title">Letzte Einträge</div>
-      <div class="history-list" id="s-history"></div>
     </div>
-  </div>
 
-  <!-- RAPPORT -->
-  <div id="screen-rapport" class="screen">
-    <div class="screen-header">
-      <button class="btn-back" onclick="goHome()">‹</button>
-      <div class="screen-title">Tagesrapport</div>
-    </div>
-    <div class="rapport-wrap">
-      <div class="field-group">
-        <label class="field-label">Projekt</label>
-        <select id="r-projekt" class="field-select"></select>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Leistungsbereich</label>
-        <div class="chip-grid">
-          <div class="chip" onclick="toggleChip(this)" data-val="Elektroinstallation">⚡ Elektroinstallation</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Erneuerbare Energien">☀️ Erneuerbare Energien</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Sicherheit">🔒 Sicherheit</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Haustechnik">🏠 Haustechnik</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Industrie & Gewerbe">🏭 Industrie</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Licht & Leuchten">💡 Licht & Leuchten</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Elektromobilität">🚗 E-Mobilität</div>
-          <div class="chip" onclick="toggleChip(this)" data-val="Multimedia">📡 Multimedia</div>
+    <!-- RAPPORT TAB -->
+    <div class="tab" id="tab-rapport">
+      <div class="rapport">
+        <div class="fg">
+          <label class="fl">Projekt</label>
+          <select id="rproj" class="fs"></select>
         </div>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Datum & Stunden</label>
-        <div class="zeit-row">
-          <div>
-            <input type="date" id="r-datum" class="field-input">
-          </div>
-          <div>
-            <input type="number" id="r-stunden" class="field-input" placeholder="8.0" min="0.5" max="12" step="0.5">
-            <div class="stunden-from-stempel" id="r-stunden-hint" style="display:none;">⏱ Aus Stempeluhr übernommen</div>
+        <div class="fg">
+          <label class="fl">Leistungsbereich</label>
+          <div class="chip-grid">
+            <div class="chip" onclick="chip(this)" data-v="Elektroinstallation">⚡ Elektroinstallation</div>
+            <div class="chip" onclick="chip(this)" data-v="Erneuerbare Energien">☀️ Erneuerbare Energien</div>
+            <div class="chip" onclick="chip(this)" data-v="Sicherheit">🔒 Sicherheit</div>
+            <div class="chip" onclick="chip(this)" data-v="Haustechnik">🏠 Haustechnik</div>
+            <div class="chip" onclick="chip(this)" data-v="Industrie & Gewerbe">🏭 Industrie</div>
+            <div class="chip" onclick="chip(this)" data-v="Licht & Leuchten">💡 Licht</div>
+            <div class="chip" onclick="chip(this)" data-v="Elektromobilität">🚗 E-Mobilität</div>
+            <div class="chip" onclick="chip(this)" data-v="Multimedia">📡 Multimedia</div>
           </div>
         </div>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Was wurde gemacht?</label>
-        <textarea id="r-beschreibung" class="field-textarea" placeholder="Z.B.: Kabelverlegung EG abgeschlossen, Unterverteilung UV1 verdrahtet…"></textarea>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Fotos</label>
-        <div class="foto-zone" onclick="document.getElementById('foto-input').click()">
-          <input type="file" id="foto-input" accept="image/*" multiple capture="environment" onchange="handleFotos(event)">
-          <div class="foto-zone-icon">📷</div>
-          <div class="foto-zone-text">Fotos von der Baustelle</div>
-          <div class="foto-zone-sub">Tippen zum Aufnehmen</div>
+        <div class="fg">
+          <label class="fl">Datum & Stunden</label>
+          <div class="zr">
+            <input type="date" id="rdat" class="fi">
+            <div>
+              <input type="number" id="rstd" class="fi" placeholder="8.0" min="0.5" max="16" step="0.5">
+              <div class="sh" id="rstdh">⏱ Aus Stempeluhr</div>
+            </div>
+          </div>
         </div>
-        <div class="foto-previews" id="foto-previews"></div>
+        <div class="fg">
+          <label class="fl">Was wurde gemacht?</label>
+          <textarea id="rbesc" class="ft" placeholder="Z.B.: Kabelverlegung EG abgeschlossen…"></textarea>
+        </div>
+        <div class="fg">
+          <label class="fl">Fotos</label>
+          <div class="foto-z" onclick="document.getElementById('finput').click()">
+            <input type="file" id="finput" accept="image/*" multiple capture="environment" onchange="handleFotos(event)">
+            <div class="foto-z-i">📷</div>
+            <div class="foto-z-t">Fotos von der Baustelle</div>
+            <div class="foto-z-s">Tippen zum Aufnehmen</div>
+          </div>
+          <div class="foto-prev" id="fprev"></div>
+        </div>
+        <button class="btn-send" id="btnsend" onclick="rapportSenden()">Rapport absenden →</button>
       </div>
-      <button class="btn-senden" id="btn-rapport" onclick="rapportSenden()">Rapport absenden →</button>
     </div>
-  </div>
 
-  <!-- DASHBOARD -->
-  <div id="screen-dashboard" class="screen">
-    <div class="screen-header">
-      <button class="btn-back" onclick="goHome()">‹</button>
-      <div class="screen-title">Dashboard</div>
-    </div>
-    <div class="dashboard-wrap">
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-lbl">Projekte</div><div class="kpi-val amber" id="kpi-p">—</div></div>
-        <div class="kpi-card"><div class="kpi-lbl">Rapporte heute</div><div class="kpi-val" id="kpi-h">—</div></div>
-        <div class="kpi-card"><div class="kpi-lbl">Stunden gesamt</div><div class="kpi-val" id="kpi-s">—</div></div>
-        <div class="kpi-card"><div class="kpi-lbl">Aktive Projekte</div><div class="kpi-val" id="kpi-a">—</div></div>
+    <!-- DASHBOARD TAB -->
+    <div class="tab" id="tab-dashboard">
+      <div class="dash">
+        <div class="kpi-g">
+          <div class="kpi"><div class="kpi-l">Projekte</div><div class="kpi-v a" id="kp">—</div></div>
+          <div class="kpi"><div class="kpi-l">Rapporte heute</div><div class="kpi-v" id="kh">—</div></div>
+          <div class="kpi"><div class="kpi-l">Stunden gesamt</div><div class="kpi-v" id="ks">—</div></div>
+          <div class="kpi"><div class="kpi-l">Aktive Projekte</div><div class="kpi-v" id="ka">—</div></div>
+        </div>
+        <div class="fil-r">
+          <div class="fc on" onclick="setFil('alle',this)">Alle</div>
+          <div class="fc" onclick="setFil('Elektroinstallation',this)">Elektroinstallation</div>
+          <div class="fc" onclick="setFil('Erneuerbare Energien',this)">PV / Solar</div>
+          <div class="fc" onclick="setFil('Sicherheit',this)">Sicherheit</div>
+          <div class="fc" onclick="setFil('Haustechnik',this)">Haustechnik</div>
+          <div class="fc" onclick="setFil('Industrie & Gewerbe',this)">Industrie</div>
+        </div>
+        <div id="plist"><div class="load"><div class="sp"></div></div></div>
       </div>
-      <div class="filter-row">
-        <div class="filter-chip active" onclick="setFilter('alle',this)">Alle</div>
-        <div class="filter-chip" onclick="setFilter('Elektroinstallation',this)">Elektroinstallation</div>
-        <div class="filter-chip" onclick="setFilter('Erneuerbare Energien',this)">Erneuerbare Energien</div>
-        <div class="filter-chip" onclick="setFilter('Sicherheit',this)">Sicherheit</div>
-        <div class="filter-chip" onclick="setFilter('Haustechnik',this)">Haustechnik</div>
-        <div class="filter-chip" onclick="setFilter('Industrie & Gewerbe',this)">Industrie & Gewerbe</div>
-      </div>
-      <div class="projekt-list" id="projekt-list"><div class="loading"><div class="spinner"></div><br>Lade…</div></div>
     </div>
-  </div>
 
-  <!-- AUSWERTUNG -->
-  <div id="screen-auswertung" class="screen">
-    <div class="screen-header">
-      <button class="btn-back" onclick="goHome()">‹</button>
-      <div class="screen-title">Auswertung</div>
-    </div>
-    <div class="auswertung-wrap">
-      <div class="period-tabs">
-        <button class="period-tab active" onclick="setPeriod('woche',this)">Woche</button>
-        <button class="period-tab" onclick="setPeriod('monat',this)">Monat</button>
-        <button class="period-tab" onclick="setPeriod('gesamt',this)">Gesamt</button>
+    <!-- AUSWERTUNG TAB -->
+    <div class="tab" id="tab-auswertung">
+      <div class="ausw">
+        <div class="pt">
+          <button class="ptb on" onclick="setPer('woche',this)">Woche</button>
+          <button class="ptb" onclick="setPer('monat',this)">Monat</button>
+          <button class="ptb" onclick="setPer('gesamt',this)">Gesamt</button>
+        </div>
+        <div id="ag"></div>
+        <div id="al"><div class="load"><div class="sp"></div></div></div>
       </div>
-      <div id="auswertung-gesamt"></div>
-      <div id="auswertung-list"><div class="loading"><div class="spinner"></div><br>Lade…</div></div>
     </div>
-  </div>
 
-  <!-- RECHNUNGEN -->
-  <div id="screen-rechnungen" class="screen">
-    <div class="screen-header">
-      <button class="btn-back" onclick="goHome()">‹</button>
-      <div class="screen-title">Rechnungen</div>
-    </div>
-    <div class="rechnungen-wrap">
-      <button class="btn-neu-rechnung" onclick="toggleNeuForm()">＋ Neue Rechnung erstellen</button>
-      <div class="neu-form" id="neu-form">
-        <div class="neu-form-title">Neue Rechnung</div>
-        <div class="form-full">
-          <label class="field-label">Projekt</label>
-          <select id="rneu-projekt" class="field-select"></select>
-        </div>
-        <div class="form-row">
-          <div>
-            <label class="field-label">Typ</label>
-            <select id="rneu-typ" class="field-select">
-              <option value="teilrechnung">Teilrechnung</option>
-              <option value="schlussrechnung">Schlussrechnung</option>
-            </select>
+    <!-- RECHNUNGEN TAB -->
+    <div class="tab" id="tab-rechnungen">
+      <div class="rech">
+        <button class="btn-nr" onclick="toggleNF()">＋ Neue Rechnung erstellen</button>
+        <div class="nf" id="nf">
+          <div class="nft">Neue Rechnung</div>
+          <div class="ff"><label class="fl">Projekt</label><select id="rnproj" class="fs"></select></div>
+          <div class="fr">
+            <div><label class="fl">Typ</label><select id="rntyp" class="fs"><option value="teilrechnung">Teilrechnung</option><option value="schlussrechnung">Schlussrechnung</option></select></div>
+            <div><label class="fl">Datum</label><input type="date" id="rndat" class="fi"></div>
           </div>
-          <div>
-            <label class="field-label">Datum</label>
-            <input type="date" id="rneu-datum" class="field-input">
+          <div class="fr">
+            <div><label class="fl">Stunden</label><input type="number" id="rnstd" class="fi" placeholder="0" step="0.5"></div>
+            <div><label class="fl">Stundensatz €</label><input type="number" id="rnsatz" class="fi" value="85" step="5"></div>
           </div>
+          <div class="ff"><label class="fl">Notiz</label><textarea id="rnnotiz" class="ft" style="min-height:60px;" placeholder="Leistungszeitraum…"></textarea></div>
+          <button class="btn-send" onclick="rechnungSpeichern()" style="margin-top:10px;">Rechnung anlegen →</button>
         </div>
-        <div class="form-row">
-          <div>
-            <label class="field-label">Stunden</label>
-            <input type="number" id="rneu-stunden" class="field-input" placeholder="0" step="0.5">
-          </div>
-          <div>
-            <label class="field-label">Stundensatz €</label>
-            <input type="number" id="rneu-satz" class="field-input" value="85" step="5">
-          </div>
-        </div>
-        <div class="form-full">
-          <label class="field-label">Notiz</label>
-          <textarea id="rneu-notiz" class="field-textarea" style="min-height:60px;" placeholder="Leistungszeitraum, Hinweise…"></textarea>
-        </div>
-        <button class="btn-senden" onclick="rechnungSpeichern()">Rechnung anlegen →</button>
+        <div id="rl"><div class="load"><div class="sp"></div></div></div>
       </div>
-      <div id="rechnung-list"><div class="loading"><div class="spinner"></div><br>Lade…</div></div>
     </div>
+
+  </div><!-- /content -->
+
+  <!-- Tab Bar -->
+  <div class="tabbar">
+    <button class="tb active" id="tb-home" onclick="showTab('home')">
+      <span class="tb-icon">🏠</span>Home
+    </button>
+    <button class="tb" id="tb-stempel" onclick="showTab('stempel')">
+      <span class="tb-icon">⏱</span>Stempel
+    </button>
+    <button class="tb" id="tb-rapport" onclick="showTab('rapport')">
+      <span class="tb-icon">📋</span>Rapport
+    </button>
+    <button class="tb pl-tab" id="tb-dashboard" onclick="showTab('dashboard')" style="display:none;">
+      <span class="tb-icon">📊</span>Dashboard
+    </button>
+    <button class="tb pl-tab" id="tb-auswertung" onclick="showTab('auswertung')" style="display:none;">
+      <span class="tb-icon">📈</span>Auswertung
+    </button>
+    <button class="tb pl-tab" id="tb-rechnungen" onclick="showTab('rechnungen')" style="display:none;">
+      <span class="tb-icon">📄</span>Rechnung
+    </button>
   </div>
 </div>
 
-<div class="toast toast-ok" id="toast-ok"></div>
-<div class="toast toast-err" id="toast-err"></div>
+<div class="toast tok" id="tok"></div>
+<div class="toast ter" id="ter"></div>
 
 <script>
-const SB_URL='https://ysqzdqazcgyuzdorauiq.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzcXpkcWF6Y2d5dXpkb3JhdWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODM0NzcsImV4cCI6MjA5NTU1OTQ3N30.u5cbSVniUl5Zvlf2rdpnjtvDyKvv9csmPwvdtnEwWzE';
-const {createClient}=supabase;
-const db=createClient(SB_URL,SB_KEY);
+const SB='https://ysqzdqazcgyuzdorauiq.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzcXpkcWF6Y2d5dXpkb3JhdWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODM0NzcsImV4cCI6MjA5NTU1OTQ3N30.u5cbSVniUl5Zvlf2rdpnjtvDyKvv9csmPwvdtnEwWzE';
+const db=supabase.createClient(SB,SK);
 
-let currentMa=null,projekte=[],mitarbeiter=[];
-let selectedLeistung=null,fotoData=[];
-let currentFilter='alle',currentPeriod='woche';
-let uhrzeitInterval=null,stempelInterval=null,aktiverStempel=null;
+let MA=null,projekte=[],selL=null,fotoData=[],filter='alle',period='woche',aktStempel=null;
+let uhrI=null,stI=null;
 
-// ── PIN LOGIN ──
+// ── LOGIN ──
 async function doLogin(){
-  const maId=document.getElementById('l-name').value;
-  const pin=document.getElementById('l-pin').value.trim();
-  const errEl=document.getElementById('login-err');
-  errEl.style.display='none';
-  if(!maId){errEl.textContent='Bitte Mitarbeiter auswählen.';errEl.style.display='block';return;}
-  if(!pin){errEl.textContent='Bitte PIN eingeben.';errEl.style.display='block';return;}
-  const btn=document.getElementById('btn-login');
-  btn.disabled=true;btn.textContent='⏳ Prüfe…';
-  const {data,error}=await db.from('musa_mitarbeiter').select('*').eq('id',maId).eq('pin',pin).single();
-  if(error||!data){
-    errEl.textContent='PIN falsch. Nochmal versuchen.';
-    errEl.style.display='block';
-    btn.disabled=false;btn.textContent='Einloggen →';return;
-  }
-  localStorage.setItem('musa_session',JSON.stringify({maId:data.id,ts:Date.now()}));
+  const id=document.getElementById('lname').value;
+  const pin=document.getElementById('lpin').value.trim();
+  const err=document.getElementById('lerr');
+  const btn=document.getElementById('btnlogin');
+  err.style.display='none';
+  if(!id||!pin){err.textContent='Bitte Mitarbeiter und PIN eingeben.';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='⏳';
+  const {data,error}=await db.from('musa_mitarbeiter').select('*').eq('id',id).eq('pin',pin).single();
+  if(error||!data){err.textContent='PIN falsch.';err.style.display='block';btn.disabled=false;btn.textContent='Einloggen →';return;}
+  localStorage.setItem('musa_s',JSON.stringify({id:data.id,ts:Date.now()}));
   await startApp(data);
   btn.disabled=false;btn.textContent='Einloggen →';
 }
 
 async function startApp(ma){
-  currentMa=ma;
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('user-name').textContent=ma.name;
-  document.getElementById('user-rolle').textContent=(ma.rolle||'')+'  ·  Abmelden';
-  // PL-only Buttons — nur für nicht-Monteure sichtbar
-  document.querySelectorAll('.pl-only').forEach(function(el) {
-    el.style.display = (ma.rolle !== 'monteur') ? 'flex' : 'none';
-  });
-
-  // Home Begrüssung
+  MA=ma;
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').classList.add('on');
+  document.getElementById('hun').textContent=ma.name;
+  document.getElementById('hur').textContent=ma.rolle+' · Abmelden';
   const h=new Date().getHours();
-  const gt=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
-  document.getElementById('home-tageszeit').textContent=gt;
-  document.getElementById('home-name').textContent=ma.name+' 👷';
-  document.getElementById('home-datum').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('hts').textContent=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
+  document.getElementById('hn').textContent=ma.name+' 👷';
+  document.getElementById('hd').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  // PL Tabs
+  if(ma.rolle!=='monteur'){
+    document.querySelectorAll('.pl-tab,.pl-btn').forEach(e=>e.style.display='flex');
+  }
   startUhr();
   await init();
 }
 
 async function doLogout(){
-  clearInterval(uhrzeitInterval);clearInterval(stempelInterval);
-  currentMa=null;aktiverStempel=null;
-  localStorage.removeItem('musa_session');
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('l-pin').value='';
-  document.getElementById('l-name').value='';
-  document.getElementById('login-err').style.display='none';
-  goHome();
+  clearInterval(uhrI);clearInterval(stI);
+  MA=null;aktStempel=null;
+  localStorage.removeItem('musa_s');
+  document.getElementById('app').classList.remove('on');
+  document.getElementById('login').style.display='flex';
+  document.getElementById('lpin').value='';
+  showTab('home');
 }
 
-// Session wiederherstellen
-(async function(){
-  // Mitarbeiter-Liste für Login laden
+// Auto-Session
+(async()=>{
   const {data:m}=await db.from('musa_mitarbeiter').select('id,name,rolle').order('name');
-  if(m){
-    const sel=document.getElementById('l-name');
-    m.forEach(function(x){
-      const o=document.createElement('option');
-      o.value=x.id; o.textContent=x.name;
-      sel.appendChild(o);
-    });
-  }
-  // Session nur wiederherstellen wenn vorhanden und frisch (max 8h)
-  const s=localStorage.getItem('musa_session');
-  if(s){
+  if(m){const s=document.getElementById('lname');m.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;s.appendChild(o);});}
+  const ss=localStorage.getItem('musa_s');
+  if(ss){
     try{
-      const sess=JSON.parse(s);
-      if(Date.now()-sess.ts < 8*3600*1000){
-        const {data,error}=await db.from('musa_mitarbeiter').select('*').eq('id',sess.maId).single();
-        if(data && !error){
-          await startApp(data);
-          return; // Login überspringen
-        }
+      const p=JSON.parse(ss);
+      if(Date.now()-p.ts<8*3600*1000){
+        const {data}=await db.from('musa_mitarbeiter').select('*').eq('id',p.id).single();
+        if(data){await startApp(data);return;}
       }
-      localStorage.removeItem('musa_session');
-    }catch(e){ localStorage.removeItem('musa_session'); }
+      localStorage.removeItem('musa_s');
+    }catch(e){localStorage.removeItem('musa_s');}
   }
-  // Standard: Login anzeigen
-  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login').style.display='flex';
 })();
 
 // ── NAVIGATION ──
-function goScreen(name){
-  document.querySelectorAll('.screen').forEach(function(s){
-    s.classList.remove('active');
-  });
-  var t=document.getElementById('screen-'+name);
-  if(t){ t.classList.add('active'); window.scrollTo(0,0); }
-  if(name==='dashboard')renderDashboard();
-  if(name==='auswertung')renderAuswertung();
-  if(name==='rechnungen')renderRechnungen();
-}
-function goHome(){
-  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-  document.getElementById('screen-home').classList.add('active');
-  window.scrollTo(0,0);
-  updateHomeBanner();
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tb').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const tb=document.getElementById('tb-'+name);
+  if(tb) tb.classList.add('active');
+  document.querySelector('.content').scrollTop=0;
+  if(name==='dashboard')renderDash();
+  if(name==='auswertung')renderAusw();
+  if(name==='rechnungen')renderRech();
+  if(name==='stempel')setTimeout(ladeHist,50);
 }
 
 // ── UHR ──
 function startUhr(){
-  clearInterval(uhrzeitInterval);
+  clearInterval(uhrI);
   function tick(){
-    const now=new Date();
-    document.getElementById('s-uhr').textContent=now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    document.getElementById('s-datum').textContent=now.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long'});
+    const n=new Date();
+    document.getElementById('suhr').textContent=n.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('sdat').textContent=n.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long'});
   }
-  tick();uhrzeitInterval=setInterval(tick,1000);
+  tick();uhrI=setInterval(tick,1000);
 }
 
 // ── INIT ──
 async function init(){
-  document.getElementById('r-datum').value=new Date().toISOString().split('T')[0];
-  document.getElementById('rneu-datum').value=new Date().toISOString().split('T')[0];
-  const [{data:p},{data:m}]=await Promise.all([
-    db.from('musa_projekte').select('*').order('name'),
-    db.from('musa_mitarbeiter').select('*').order('name')
-  ]);
-  projekte=p||[];mitarbeiter=m||[];
-  ['r-projekt','s-projekt','rneu-projekt'].forEach(id=>{
-    const sel=document.getElementById(id);if(!sel)return;
-    sel.innerHTML='<option value="">— Projekt auswählen —</option>';
-    projekte.forEach(pr=>{const o=document.createElement('option');o.value=pr.id;o.textContent=pr.name;sel.appendChild(o);});
+  document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
+  document.getElementById('rndat').value=new Date().toISOString().split('T')[0];
+  const [{data:p}]=await Promise.all([db.from('musa_projekte').select('*').order('name')]);
+  projekte=p||[];
+  ['sproj','rproj','rnproj'].forEach(id=>{
+    const s=document.getElementById(id);if(!s)return;
+    s.innerHTML='<option value="">— Projekt auswählen —</option>';
+    projekte.forEach(pr=>{const o=document.createElement('option');o.value=pr.id;o.textContent=pr.name;s.appendChild(o);});
   });
-  await ladeAktivenStempel();
-  updateHomeBanner();
+  await ladeAktStempel();
+  await ladeHist();
 }
 
-// ── STEMPELUHR ──
-function updateHomeBanner(){
-  const banner=document.getElementById('home-stempel-banner');
-  const info=document.getElementById('home-stempel-info');
-  const timer=document.getElementById('home-stempel-timer');
-  if(aktiverStempel){
-    banner.classList.add('aktiv');
-    const p=projekte.find(x=>x.id===aktiverStempel.projektId);
-    info.textContent=(p?p.name:'Projekt') + ' · seit ' + aktiverStempel.ein.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    // Live-Timer auf Home
-    clearInterval(stempelInterval);
-    stempelInterval=setInterval(()=>{
-      if(!aktiverStempel)return;
-      const diff=Math.floor((Date.now()-aktiverStempel.ein)/1000);
-      const h=Math.floor(diff/3600),min=Math.floor((diff%3600)/60),s=diff%60;
-      const str=String(h).padStart(2,'0')+':'+String(min).padStart(2,'0')+':'+String(s).padStart(2,'0');
-      timer.textContent=str;
-      // Auch in Stempel-Screen
-      const lr=document.getElementById('s-laufzeit');
-      if(lr) lr.textContent='⏱ '+str+' aktiv';
-    },1000);
+// ── STEMPEL ──
+async function ladeAktStempel(){
+  if(!MA)return;
+  const {data}=await db.from('musa_stempeluhr').select('*').eq('mitarbeiter_id',MA.id).is('gestempelt_aus',null).order('gestempelt_ein',{ascending:false}).limit(1);
+  if(data&&data.length){aktStempel={id:data[0].id,ein:new Date(data[0].gestempelt_ein),projId:data[0].projekt_id};stUIAn();}
+  ladeHist();
+}
+
+function stUIAn(){
+  document.getElementById('btnk').disabled=true;
+  document.getElementById('btng').disabled=false;
+  const st=document.getElementById('sst');
+  st.className='uhr-st on';
+  document.getElementById('sstxt').textContent='Eingestempelt';
+  if(aktStempel.projId) document.getElementById('sproj').value=aktStempel.projId;
+  updateBanner();
+  clearInterval(stI);
+  stI=setInterval(()=>{
+    if(!aktStempel)return;
+    const d=Math.floor((Date.now()-aktStempel.ein)/1000);
+    const h=Math.floor(d/3600),m=Math.floor((d%3600)/60),s=d%60;
+    const str=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    document.getElementById('slauf').textContent='⏱ '+str+' aktiv';
+    document.getElementById('hbtimer').textContent=str;
+  },1000);
+}
+
+function stUIAus(){
+  clearInterval(stI);aktStempel=null;
+  document.getElementById('btnk').disabled=false;
+  document.getElementById('btng').disabled=true;
+  document.getElementById('sst').className='uhr-st off';
+  document.getElementById('sstxt').textContent='Nicht eingestempelt';
+  document.getElementById('slauf').textContent='';
+  document.getElementById('hbtimer').textContent='';
+  updateBanner();
+}
+
+function updateBanner(){
+  const b=document.getElementById('hbanner');
+  const v=document.getElementById('hbval');
+  if(aktStempel){
+    b.classList.add('on');
+    const p=projekte.find(x=>x.id===aktStempel.projId);
+    v.textContent=(p?p.name:'Projekt')+' · seit '+aktStempel.ein.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
   } else {
-    banner.classList.remove('aktiv');
-    info.textContent='Noch nicht eingestempelt';
-    timer.textContent='';
-    clearInterval(stempelInterval);
-    const lr=document.getElementById('s-laufzeit');
-    if(lr) lr.textContent='';
+    b.classList.remove('on');
+    v.textContent='Noch nicht eingestempelt';
   }
-}
-
-async function ladeAktivenStempel(){
-  if(!currentMa)return;
-  const {data}=await db.from('musa_stempeluhr').select('*').eq('mitarbeiter_id',currentMa.id).is('gestempelt_aus',null).order('gestempelt_ein',{ascending:false}).limit(1);
-  if(data&&data.length>0){
-    aktiverStempel={id:data[0].id,ein:new Date(data[0].gestempelt_ein),projektId:data[0].projekt_id};
-    stempelUIAktiv();
-  }
-  ladeHistory();
-}
-
-function stempelUIAktiv(){
-  document.getElementById('btn-kommen').disabled=true;
-  document.getElementById('btn-gehen').disabled=false;
-  const st=document.getElementById('s-status');
-  st.className='uhr-status ein';
-  document.getElementById('s-status-text').textContent='Eingestempelt';
-  if(aktiverStempel.projektId) document.getElementById('s-projekt').value=aktiverStempel.projektId;
-  updateHomeBanner();
-}
-
-function stempelUIInaktiv(){
-  aktiverStempel=null;
-  document.getElementById('btn-kommen').disabled=false;
-  document.getElementById('btn-gehen').disabled=true;
-  const st=document.getElementById('s-status');
-  st.className='uhr-status aus';
-  document.getElementById('s-status-text').textContent='Nicht eingestempelt';
-  document.getElementById('s-laufzeit').textContent='';
-  updateHomeBanner();
 }
 
 async function stempelKommen(){
-  const projektId=document.getElementById('s-projekt').value;
-  if(!projektId){showErr('Bitte Projekt auswählen.');return;}
-  const {data,error}=await db.from('musa_stempeluhr').insert({mitarbeiter_id:currentMa.id,projekt_id:projektId,gestempelt_ein:new Date().toISOString()}).select().single();
+  const pid=document.getElementById('sproj').value;
+  if(!pid){showErr('Bitte Projekt auswählen.');return;}
+  const {data,error}=await db.from('musa_stempeluhr').insert({mitarbeiter_id:MA.id,projekt_id:pid,gestempelt_ein:new Date().toISOString()}).select().single();
   if(error){showErr('Fehler: '+error.message);return;}
-  aktiverStempel={id:data.id,ein:new Date(data.gestempelt_ein),projektId};
-  stempelUIAktiv();showOk('✅ Eingestempelt!');ladeHistory();
+  aktStempel={id:data.id,ein:new Date(data.gestempelt_ein),projId:pid};
+  stUIAn();showOk('✅ Eingestempelt!');ladeHist();
 }
 
 async function stempelGehen(){
-  if(!aktiverStempel)return;
+  if(!aktStempel)return;
   const jetzt=new Date();
-  const {error}=await db.from('musa_stempeluhr').update({gestempelt_aus:jetzt.toISOString()}).eq('id',aktiverStempel.id);
+  const {error}=await db.from('musa_stempeluhr').update({gestempelt_aus:jetzt.toISOString()}).eq('id',aktStempel.id);
   if(error){showErr('Fehler: '+error.message);return;}
-  const diffH=((jetzt-aktiverStempel.ein)/3600000).toFixed(1);
-  document.getElementById('r-stunden').value=diffH;
-  document.getElementById('r-datum').value=jetzt.toISOString().split('T')[0];
-  document.getElementById('r-stunden-hint').style.display='block';
-  if(aktiverStempel.projektId) document.getElementById('r-projekt').value=aktiverStempel.projektId;
-  stempelUIInaktiv();
-  showOk('✅ Ausgestempelt — Rapport vorausgefüllt!');
-  ladeHistory();
+  const diffH=((jetzt-aktStempel.ein)/3600000).toFixed(1);
+  if(aktStempel.projId) document.getElementById('rproj').value=aktStempel.projId;
+  document.getElementById('rstd').value=diffH;
+  document.getElementById('rdat').value=jetzt.toISOString().split('T')[0];
+  document.getElementById('rstdh').style.display='block';
+  stUIAus();
+  showOk('✅ Ausgestempelt!');
+  ladeHist();
+  setTimeout(()=>showTab('rapport'),1200);
 }
 
-async function ladeHistory(){
-  if(!currentMa)return;
+async function ladeHist(){
+  if(!MA)return;
   const heute=new Date().toISOString().split('T')[0];
-  const {data}=await db.from('musa_stempeluhr')
-    .select('*,musa_projekte(name,id)')
-    .eq('mitarbeiter_id',currentMa.id)
-    .not('gestempelt_aus','is',null)
-    .order('gestempelt_ein',{ascending:false})
-    .limit(10);
-  const el=document.getElementById('s-history');
-  if(!data||!data.length){
-    el.innerHTML='<div style="color:var(--grau);font-size:13px;padding:10px 0;">Noch keine Einträge</div>';
-    document.getElementById('s-tagesstunden').textContent='0.0h heute';
-    return;
-  }
-  // Tagesstunden kumulieren
-  const tagesH=data
-    .filter(r=>r.gestempelt_ein.startsWith(heute))
-    .reduce((s,r)=>{
-      const ein=new Date(r.gestempelt_ein),aus=new Date(r.gestempelt_aus);
-      return s+((aus-ein)/3600000);
-    },0);
-  document.getElementById('s-tagesstunden').textContent=tagesH.toFixed(1)+'h heute';
-
+  const {data}=await db.from('musa_stempeluhr').select('*,musa_projekte(name,id)').eq('mitarbeiter_id',MA.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(8);
+  const el=document.getElementById('shist');
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="ei">⏳</div>Noch keine Einträge</div>';document.getElementById('sheute').textContent='0.0h heute';return;}
+  const todayH=data.filter(r=>r.gestempelt_ein.startsWith(heute)).reduce((s,r)=>{const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);return s+((a-e)/3600000);},0);
+  document.getElementById('sheute').textContent=todayH.toFixed(1)+'h heute';
   el.innerHTML=data.map(r=>{
-    const ein=new Date(r.gestempelt_ein),aus=new Date(r.gestempelt_aus);
-    const std=((aus-ein)/3600000).toFixed(1);
-    const datum=ein.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
-    const zeit=ein.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' – '+aus.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const istHeute=r.gestempelt_ein.startsWith(heute);
-    const projektId=r.musa_projekte?.id||'';
-    const projektName=r.musa_projekte?.name||'—';
-    return `<div class="history-row" onclick="rapportAusStempel('${projektId}','${datum}','${std}')" style="cursor:pointer;">
-      <div>
-        <div class="history-projekt">${projektName}</div>
-        <div class="history-meta">${datum} · ${zeit}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div class="history-std">${std}h</div>
-        ${istHeute?'<div style="font-size:10px;color:var(--amber);font-weight:700;background:rgba(245,158,11,0.1);padding:2px 7px;border-radius:4px;">📋 Rapport</div>':''}
-      </div>
+    const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);
+    const std=((a-e)/3600000).toFixed(1);
+    const dat=e.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const zt=e.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' – '+a.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const pn=r.musa_projekte?.name||'—';
+    const pid=r.musa_projekte?.id||'';
+    const isH=r.gestempelt_ein.startsWith(heute);
+    return `<div class="hist-row" onclick="rapportVonStempel('${pid}','${r.gestempelt_ein.split('T')[0]}','${std}')">
+      <div><div class="hist-pn">${pn}</div><div class="hist-m">${dat} · ${zt}</div></div>
+      <div class="hist-r"><div class="hist-h">${std}h</div>${isH?'<div class="hist-badge">📋 Rapport</div>':''}</div>
     </div>`;
   }).join('');
 }
 
-function rapportAusStempel(projektId, datum, std){
-  // Zum Rapport-Screen navigieren mit vorausgefüllten Werten
-  goScreen('rapport');
-  setTimeout(function(){
-    if(projektId) document.getElementById('r-projekt').value=projektId;
-    if(std) document.getElementById('r-stunden').value=std;
-    // Datum aus dd.mm in yyyy-mm-dd umwandeln
-    if(datum){
-      var parts=datum.split('.');
-      if(parts.length===2){
-        var year=new Date().getFullYear();
-        document.getElementById('r-datum').value=year+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0');
-      }
-    }
-    document.getElementById('r-stunden-hint').style.display='block';
-    document.getElementById('r-stunden-hint').textContent='⏱ Aus Stempeluhr übernommen';
+function rapportVonStempel(pid,dat,std){
+  showTab('rapport');
+  setTimeout(()=>{
+    if(pid) document.getElementById('rproj').value=pid;
+    if(std) document.getElementById('rstd').value=std;
+    if(dat) document.getElementById('rdat').value=dat;
+    document.getElementById('rstdh').style.display='block';
   },100);
 }
 
 // ── RAPPORT ──
-function toggleChip(el){document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');selectedLeistung=el.dataset.val;}
+function chip(el){document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');selL=el.dataset.v;}
 
 function handleFotos(e){
-  const files=Array.from(e.target.files);const pre=document.getElementById('foto-previews');pre.innerHTML='';fotoData=[];
-  files.slice(0,6).forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const img=new Image();
-      img.onload=()=>{
-        const canvas=document.createElement('canvas');const max=600;let w=img.width,h=img.height;
-        if(w>max){h=h*(max/w);w=max;}canvas.width=w;canvas.height=h;
-        canvas.getContext('2d').drawImage(img,0,0,w,h);
-        const data=canvas.toDataURL('image/jpeg',.7);fotoData.push(data);
-        const th=document.createElement('img');th.src=data;th.className='foto-thumb';pre.appendChild(th);
-      };img.src=ev.target.result;
-    };reader.readAsDataURL(file);
+  const files=Array.from(e.target.files);const pre=document.getElementById('fprev');pre.innerHTML='';fotoData=[];
+  files.slice(0,6).forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');const mx=600;let w=i.width,h=i.height;if(w>mx){h=h*(mx/w);w=mx;}c.width=w;c.height=h;c.getContext('2d').drawImage(i,0,0,w,h);const d=c.toDataURL('image/jpeg',.7);fotoData.push(d);const t=document.createElement('img');t.src=d;t.className='foto-thumb';pre.appendChild(t);};i.src=ev.target.result;};r.readAsDataURL(f);
   });
 }
 
 async function rapportSenden(){
-  const projektId=document.getElementById('r-projekt').value;
-  const stunden=parseFloat(document.getElementById('r-stunden').value);
-  const beschreibung=document.getElementById('r-beschreibung').value.trim();
-  const datum=document.getElementById('r-datum').value;
-  if(!projektId||!stunden||!beschreibung||!selectedLeistung){showErr('Bitte alle Felder ausfüllen.');return;}
-  const btn=document.getElementById('btn-rapport');btn.disabled=true;btn.textContent='⏳ Sende…';
-  const {error}=await db.from('musa_rapporte').insert({projekt_id:projektId,mitarbeiter_id:currentMa.id,datum,stunden,leistung:selectedLeistung,beschreibung,fotos:fotoData.slice(0,3)});
+  const pid=document.getElementById('rproj').value;
+  const std=parseFloat(document.getElementById('rstd').value);
+  const desc=document.getElementById('rbesc').value.trim();
+  const dat=document.getElementById('rdat').value;
+  if(!pid||!std||!desc||!selL){showErr('Bitte alle Felder ausfüllen.');return;}
+  const btn=document.getElementById('btnsend');btn.disabled=true;btn.textContent='⏳ Sende…';
+  const {error}=await db.from('musa_rapporte').insert({projekt_id:pid,mitarbeiter_id:MA.id,datum:dat,stunden:std,leistung:selL,beschreibung:desc,fotos:fotoData.slice(0,3)});
   if(error){showErr('Fehler: '+error.message);}
   else{
-    document.getElementById('r-projekt').value='';document.getElementById('r-stunden').value='';
-    document.getElementById('r-beschreibung').value='';document.getElementById('r-stunden-hint').style.display='none';
-    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
-    document.getElementById('foto-previews').innerHTML='';fotoData=[];selectedLeistung=null;
-    document.getElementById('r-datum').value=new Date().toISOString().split('T')[0];
+    document.getElementById('rproj').value='';document.getElementById('rstd').value='';document.getElementById('rbesc').value='';
+    document.getElementById('rstdh').style.display='none';
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+    document.getElementById('fprev').innerHTML='';fotoData=[];selL=null;
+    document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
     showOk('✅ Rapport übermittelt!');
-    setTimeout(()=>goHome(),1200);
+    setTimeout(()=>showTab('home'),1200);
   }
   btn.disabled=false;btn.textContent='Rapport absenden →';
 }
 
 // ── DASHBOARD ──
-function setFilter(val,el){currentFilter=val;document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderDashboard();}
+function setFil(v,el){filter=v;document.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderDash();}
 
-async function renderDashboard(){
-  const listEl=document.getElementById('projekt-list');
-  listEl.innerHTML='<div class="loading"><div class="spinner"></div><br>Lade…</div>';
+async function renderDash(){
+  const el=document.getElementById('plist');el.innerHTML='<div class="load"><div class="sp"></div></div>';
   try{
     const heute=new Date().toISOString().split('T')[0];
-    const {data:rapporte}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name),musa_projekte(name)').order('created_at',{ascending:false});
-    const rr=rapporte||[];
-    document.getElementById('kpi-p').textContent=projekte.length;
-    document.getElementById('kpi-h').textContent=rr.filter(r=>r.datum===heute).length;
-    document.getElementById('kpi-s').textContent=rr.reduce((s,r)=>s+(r.stunden||0),0).toFixed(1).replace('.0','');
-    document.getElementById('kpi-a').textContent=projekte.filter(p=>p.status==='aktiv'||p.status==='offen').length;
+    const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name),musa_projekte(name)').order('created_at',{ascending:false});
+    const r=rr||[];
+    document.getElementById('kp').textContent=projekte.length;
+    document.getElementById('kh').textContent=r.filter(x=>x.datum===heute).length;
+    document.getElementById('ks').textContent=r.reduce((s,x)=>s+(x.stunden||0),0).toFixed(1).replace('.0','');
+    document.getElementById('ka').textContent=projekte.filter(p=>p.status==='aktiv'||p.status==='offen').length;
     let gf=projekte;
-    if(currentFilter!=='alle') gf=projekte.filter(p=>p.leistungen&&p.leistungen.includes(currentFilter));
-    listEl.innerHTML='';
-    if(!gf.length){listEl.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><p>Keine Projekte.</p></div>';return;}
-    const sm={offen:['s-offen','Offen'],aktiv:['s-aktiv','In Arbeit'],abnahme:['s-abnahme','Abnahme'],abgerechnet:['s-abgerechnet','Abgerechnet'],abgeschlossen:['s-abgerechnet','Abgeschlossen']};
+    if(filter!=='alle')gf=projekte.filter(p=>p.leistungen&&p.leistungen.includes(filter));
+    el.innerHTML='';
+    if(!gf.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>Keine Projekte.</div>';return;}
+    const sm={offen:['so','Offen'],aktiv:['sa','In Arbeit'],abnahme:['sab','Abnahme'],abgerechnet:['sg','Abgerechnet'],abgeschlossen:['sg','Abgeschlossen']};
     gf.forEach(p=>{
-      const pR=rr.filter(r=>r.projekt_id===p.id);
-      const sumH=pR.reduce((s,r)=>s+(r.stunden||0),0);
-      const [sc,sl]=sm[p.status]||['s-offen',p.status];
-      const tags=(p.leistungen||[]).map(l=>`<span class="tag">${l}</span>`).join('');
-      const rapHTML=pR.length===0?'<div class="empty-panel">Noch keine Rapporte</div>':pR.map(r=>{
-        const ma=r.musa_mitarbeiter?.name||'—';
-        const d=new Date(r.created_at);
+      const pr=r.filter(x=>x.projekt_id===p.id);
+      const sh=pr.reduce((s,x)=>s+(x.stunden||0),0);
+      const [sc,sl]=sm[p.status]||['so',p.status];
+      const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${l}</span>`).join('');
+      const rhtml=pr.length===0?'<div class="empty-p">Noch keine Rapporte</div>':pr.map(x=>{
+        const mn=x.musa_mitarbeiter?.name||'—';
+        const d=new Date(x.created_at);
         const ds=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-        const th=r.fotos&&r.fotos.length>0?`<img src="${r.fotos[0]}" class="rapport-thumb">`:`<div class="rapport-no-thumb">📋</div>`;
-        return `<div class="rapport-item">${th}<div class="rapport-body"><div class="rapport-top"><div class="rapport-name">${ma}</div><div class="rapport-ts">${ds}</div></div><div class="rapport-desc">${r.beschreibung}</div><div class="rapport-meta">⏱ ${r.stunden}h · ${r.leistung}</div></div></div>`;
+        const th=x.fotos&&x.fotos.length>0?`<img src="${x.fotos[0]}" class="rt">`:`<div class="rnt">📋</div>`;
+        return `<div class="ri">${th}<div class="rb"><div class="rtp"><div class="rnm">${mn}</div><div class="rts">${ds}</div></div><div class="rdesc">${x.beschreibung}</div><div class="rmeta">⏱ ${x.stunden}h · ${x.leistung}</div></div></div>`;
       }).join('');
-      const card=document.createElement('div');card.className='projekt-card';
-      card.innerHTML=`
-        <div class="projekt-card-header" onclick="toggleProjekt(this)">
-          <div class="projekt-card-info">
-            <div class="projekt-card-name">${p.name}</div>
-            <div class="projekt-card-meta">${p.kunde}</div>
-            <div class="projekt-card-tags">${tags}</div>
-          </div>
-          <span class="status-pill ${sc}">${sl}</span>
-          <span class="toggle-arrow">▾</span>
-        </div>
-        <div class="projekt-card-footer">
-          <div><div class="projekt-stunden-val">${sumH>0?sumH.toFixed(1)+'h':'—'}</div><div class="projekt-stunden-lbl">Erfasste Stunden</div></div>
-          <button class="btn-zu-rechnung" onclick="event.stopPropagation();zuRechnung('${p.id}')">📄 Rechnung</button>
-        </div>
-        <div class="rapport-panel" id="rp-${p.id}">${rapHTML}</div>`;
-      listEl.appendChild(card);
+      const card=document.createElement('div');card.className='pk';
+      card.innerHTML=`<div class="ph" onclick="togP(this)"><div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div><div class="ptags">${tags}</div></div><span class="sp ${sc}">${sl}</span><span class="parr">▾</span></div><div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="event.stopPropagation();zuR('${p.id}')">📄 Rechnung</button></div><div class="rp">${rhtml}</div>`;
+      el.appendChild(card);
     });
-  }catch(e){listEl.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`;}
+  }catch(e){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${e.message}</div>`;}
 }
 
-function toggleProjekt(h){
-  const card=h.closest('.projekt-card');
-  const pid=card.querySelector('.rapport-panel').id;
-  const panel=document.getElementById(pid);
-  const open=panel.classList.contains('open');
-  document.querySelectorAll('.rapport-panel').forEach(p=>p.classList.remove('open'));
-  document.querySelectorAll('.projekt-card').forEach(c=>c.classList.remove('open'));
-  if(!open){panel.classList.add('open');card.classList.add('open');}
-}
-
-function zuRechnung(id){
-  goScreen('rechnungen');
-  setTimeout(()=>{document.getElementById('rneu-projekt').value=id;document.getElementById('neu-form').classList.add('open');},150);
-}
+function togP(h){const c=h.closest('.pk');c.classList.toggle('op');}
+function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
 
 // ── AUSWERTUNG ──
-function setPeriod(p,el){currentPeriod=p;document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAuswertung();}
+function setPer(p,el){period=p;document.querySelectorAll('.ptb').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderAusw();}
 
-async function renderAuswertung(){
-  const listEl=document.getElementById('auswertung-list');const geEl=document.getElementById('auswertung-gesamt');
-  listEl.innerHTML='<div class="loading"><div class="spinner"></div><br>Lade…</div>';
-  const heute=new Date();let von;
-  if(currentPeriod==='woche'){const mo=new Date(heute);mo.setDate(heute.getDate()-heute.getDay()+1);von=mo.toISOString().split('T')[0];}
-  else if(currentPeriod==='monat'){von=new Date(heute.getFullYear(),heute.getMonth(),1).toISOString().split('T')[0];}
+async function renderAusw(){
+  const al=document.getElementById('al'),ag=document.getElementById('ag');
+  al.innerHTML='<div class="load"><div class="sp"></div></div>';
+  const h=new Date();let von;
+  if(period==='woche'){const mo=new Date(h);mo.setDate(h.getDate()-h.getDay()+1);von=mo.toISOString().split('T')[0];}
+  else if(period==='monat'){von=new Date(h.getFullYear(),h.getMonth(),1).toISOString().split('T')[0];}
   else{von='2000-01-01';}
   const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name,rolle)').gte('datum',von);
   const r=rr||[];
-  const gH=r.reduce((s,x)=>s+(x.stunden||0),0);
-  geEl.innerHTML=`<div class="gesamt-karte"><div><div class="gesamt-lbl">${currentPeriod==='woche'?'Diese Woche':currentPeriod==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gesamt-val">${gH.toFixed(1)}h</div></div><div class="gesamt-count"><div class="gesamt-lbl">Rapporte</div><div class="gesamt-count-val">${r.length}</div></div></div>`;
-  const maMap={};
-  r.forEach(x=>{const id=x.mitarbeiter_id;if(!maMap[id])maMap[id]={name:x.musa_mitarbeiter?.name||'—',rolle:x.musa_mitarbeiter?.rolle||'',stunden:0,rapporte:0,tage:new Set()};maMap[id].stunden+=(x.stunden||0);maMap[id].rapporte++;maMap[id].tage.add(x.datum);});
-  const arr=Object.values(maMap).sort((a,b)=>b.stunden-a.stunden);
-  const maxH=arr.length>0?arr[0].stunden:1;
-  if(!arr.length){listEl.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>Keine Daten.</p></div>';return;}
-  listEl.innerHTML=arr.map(ma=>{
-    const pct=Math.round((ma.stunden/maxH)*100);
-    const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[ma.rolle]||ma.rolle;
-    return `<div class="ma-karte"><div class="ma-karte-top"><div><div class="ma-karte-name">${ma.name}</div><span class="ma-karte-rolle">${rl}</span></div><div><div class="ma-karte-std">${ma.stunden.toFixed(1)}</div><div class="ma-karte-std-lbl">Stunden</div></div></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="ma-karte-stats"><div class="ma-stat"><div class="ma-stat-val">${ma.rapporte}</div><div class="ma-stat-lbl">Rapporte</div></div><div class="ma-stat"><div class="ma-stat-val">${ma.tage.size}</div><div class="ma-stat-lbl">Einsatztage</div></div><div class="ma-stat"><div class="ma-stat-val">${ma.tage.size>0?(ma.stunden/ma.tage.size).toFixed(1):0}</div><div class="ma-stat-lbl">Ø Std/Tag</div></div></div></div>`;
+  const gh=r.reduce((s,x)=>s+(x.stunden||0),0);
+  ag.innerHTML=`<div class="gk"><div><div class="gl">${period==='woche'?'Diese Woche':period==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gv">${gh.toFixed(1)}h</div></div><div class="gc"><div class="gl">Rapporte</div><div class="gcv">${r.length}</div></div></div>`;
+  const mm={};
+  r.forEach(x=>{const id=x.mitarbeiter_id;if(!mm[id])mm[id]={n:x.musa_mitarbeiter?.name||'—',ro:x.musa_mitarbeiter?.rolle||'',h:0,rp:0,tg:new Set()};mm[id].h+=(x.stunden||0);mm[id].rp++;mm[id].tg.add(x.datum);});
+  const arr=Object.values(mm).sort((a,b)=>b.h-a.h);
+  const mx=arr.length>0?arr[0].h:1;
+  if(!arr.length){al.innerHTML='<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';return;}
+  al.innerHTML=arr.map(m=>{
+    const pct=Math.round((m.h/mx)*100);
+    const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
+    return `<div class="mak"><div class="mat"><div><div class="man">${m.n}</div><span class="mar">${rl}</span></div><div><div class="mav">${m.h.toFixed(1)}</div><div class="mavl">Stunden</div></div></div><div class="bar-t"><div class="bar-f" style="width:${pct}%"></div></div><div class="mas"><div><div class="masv">${m.rp}</div><div class="masl">Rapporte</div></div><div><div class="masv">${m.tg.size}</div><div class="masl">Einsatztage</div></div><div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div></div></div>`;
   }).join('');
 }
 
 // ── RECHNUNGEN ──
-function toggleNeuForm(){document.getElementById('neu-form').classList.toggle('open');}
+function toggleNF(){document.getElementById('nf').classList.toggle('on');}
 
 async function rechnungSpeichern(){
-  const projektId=document.getElementById('rneu-projekt').value;
-  const typ=document.getElementById('rneu-typ').value;
-  const datum=document.getElementById('rneu-datum').value;
-  const stunden=parseFloat(document.getElementById('rneu-stunden').value)||0;
-  const satz=parseFloat(document.getElementById('rneu-satz').value)||85;
-  const notiz=document.getElementById('rneu-notiz').value;
-  if(!projektId||!datum){showErr('Projekt und Datum ausfüllen.');return;}
-  const netto=stunden*satz,brutto=netto*1.19;
+  const pid=document.getElementById('rnproj').value,typ=document.getElementById('rntyp').value;
+  const dat=document.getElementById('rndat').value,std=parseFloat(document.getElementById('rnstd').value)||0;
+  const satz=parseFloat(document.getElementById('rnsatz').value)||85,notiz=document.getElementById('rnnotiz').value;
+  if(!pid||!dat){showErr('Projekt und Datum ausfüllen.');return;}
+  const netto=std*satz,brutto=netto*1.19;
   const nr='MUSA-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
-  const {error}=await db.from('musa_rechnungen').insert({projekt_id:projektId,rechnungsnummer:nr,typ,datum,stunden_gesamt:stunden,stundensatz:satz,betrag_netto:netto,betrag_brutto:brutto,status:'entwurf',notiz});
+  const {error}=await db.from('musa_rechnungen').insert({projekt_id:pid,rechnungsnummer:nr,typ,datum:dat,stunden_gesamt:std,stundensatz:satz,betrag_netto:netto,betrag_brutto:brutto,status:'entwurf',notiz});
   if(error){showErr('Fehler: '+error.message);return;}
-  document.getElementById('neu-form').classList.remove('open');showOk('✅ Rechnung angelegt!');renderRechnungen();
+  document.getElementById('nf').classList.remove('on');showOk('✅ Rechnung angelegt!');renderRech();
 }
 
-async function renderRechnungen(){
-  const listEl=document.getElementById('rechnung-list');
-  listEl.innerHTML='<div class="loading"><div class="spinner"></div><br>Lade…</div>';
-  const {data:r}=await db.from('musa_rechnungen').select('*,musa_projekte(name)').order('created_at',{ascending:false});
-  if(!r||!r.length){listEl.innerHTML='<div class="empty"><div class="empty-icon">📄</div><p>Noch keine Rechnungen.</p></div>';return;}
-  const sm={entwurf:['r-entwurf','Entwurf'],gesendet:['r-gesendet','Gesendet'],bezahlt:['r-bezahlt','Bezahlt']};
-  listEl.innerHTML=r.map(x=>{
-    const [sc,sl]=sm[x.status]||['r-entwurf',x.status];
+async function renderRech(){
+  const el=document.getElementById('rl');el.innerHTML='<div class="load"><div class="sp"></div></div>';
+  const {data:rr}=await db.from('musa_rechnungen').select('*,musa_projekte(name)').order('created_at',{ascending:false});
+  if(!rr||!rr.length){el.innerHTML='<div class="empty"><div class="ei">📄</div>Noch keine Rechnungen.</div>';return;}
+  const sm={entwurf:['rp-e','Entwurf'],gesendet:['rp-s','Gesendet'],bezahlt:['rp-b','Bezahlt']};
+  el.innerHTML=rr.map(x=>{
+    const [sc,sl]=sm[x.status]||['rp-e',x.status];
     const pn=x.musa_projekte?.name||'—';
-    const brutto=x.betrag_brutto?x.betrag_brutto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
-    const netto=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
-    return `<div class="r-card">
-      <div class="r-card-top">
-        <div><div class="r-nr">${x.rechnungsnummer}</div><div class="r-projekt">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div>
-        <div><div class="r-betrag">${brutto}</div><div class="r-betrag-sub">Netto ${netto}</div></div>
-      </div>
-      <div class="r-card-footer">
-        <span class="r-pill ${sc}">${sl}</span>
-        <div class="r-actions">
-          ${x.status==='entwurf'?`<button class="btn-r-action" onclick="rStatus('${x.id}','gesendet')">📤 Gesendet</button>`:''}
-          ${x.status==='gesendet'?`<button class="btn-r-action" style="color:var(--gruen);border-color:var(--gruen);" onclick="rStatus('${x.id}','bezahlt')">✅ Bezahlt</button>`:''}
-          <button class="btn-r-action btn-r-pdf" onclick='pdfErstellen(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button>
-        </div>
-      </div>
-      ${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--grau);padding-top:10px;border-top:1px solid var(--rand);">${x.notiz}</div>`:''}
-    </div>`;
+    const br=x.betrag_brutto?x.betrag_brutto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
+    const nt=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
+    return `<div class="rc"><div class="rct"><div><div class="rcnr">${x.rechnungsnummer}</div><div class="rcpr">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${x.id}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${x.id}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick='pdf(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${x.notiz}</div>`:''}</div>`;
   }).join('');
 }
 
-async function rStatus(id,status){
-  await db.from('musa_rechnungen').update({status}).eq('id',id);
-  showOk('Status aktualisiert.');renderRechnungen();
-}
+async function rSt(id,st){await db.from('musa_rechnungen').update({status:st}).eq('id',id);showOk('Aktualisiert.');renderRech();}
 
-// ── PDF ──
-function pdfErstellen(r,pn){
+function pdf(r,pn){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
   doc.setFillColor(245,158,11);doc.rect(0,0,210,28,'F');
   doc.setTextColor(24,24,27);doc.setFontSize(18);doc.setFont('helvetica','bold');
-  doc.text('BauDesk · '+pn,14,12);
-  doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('Digitales Baustellen-Management · baudesk.de',14,20);
-  doc.setTextColor(30,30,30);doc.setFontSize(15);doc.setFont('helvetica','bold');
+  doc.text('BauDesk · '+pn,14,12);doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Digitales Baustellen-Management',14,20);doc.setTextColor(30,30,30);
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
   doc.text(r.typ==='teilrechnung'?'TEILRECHNUNG':'SCHLUSSRECHNUNG',14,44);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
   doc.text('Nr: '+r.rechnungsnummer,14,52);doc.text('Datum: '+r.datum,14,58);doc.text('Projekt: '+pn,14,64);
   doc.setDrawColor(245,158,11);doc.setLineWidth(.5);doc.line(14,70,196,70);
-  doc.setFont('helvetica','bold');doc.setFontSize(10);
-  doc.text('Leistung',14,80);doc.text('Std.',130,80,{align:'right'});doc.text('Satz',160,80,{align:'right'});doc.text('Betrag',196,80,{align:'right'});
+  doc.setFont('helvetica','bold');doc.text('Leistung',14,80);doc.text('Std.',130,80,{align:'right'});doc.text('Satz',160,80,{align:'right'});doc.text('Betrag',196,80,{align:'right'});
   doc.setDrawColor(200,200,200);doc.line(14,83,196,83);doc.setFont('helvetica','normal');
-  doc.text('Arbeitsleistung',14,91);
-  doc.text((r.stunden_gesamt||0).toFixed(1)+' Std.',130,91,{align:'right'});
+  doc.text('Arbeitsleistung',14,91);doc.text((r.stunden_gesamt||0).toFixed(1)+' Std.',130,91,{align:'right'});
   doc.text(parseFloat(r.stundensatz||85).toFixed(2)+' €',160,91,{align:'right'});
   doc.text(parseFloat(r.betrag_netto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,91,{align:'right'});
-  if(r.notiz){doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text(r.notiz,14,99);doc.setTextColor(30,30,30);doc.setFontSize(10);}
-  const y=r.notiz?114:106;doc.line(14,y-4,196,y-4);
+  const y=106;doc.line(14,y-4,196,y-4);
   const mwst=parseFloat(r.betrag_netto||0)*.19;
   doc.text('Nettobetrag:',140,y);doc.text(parseFloat(r.betrag_netto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y,{align:'right'});
   doc.text('MwSt. 19 %:',140,y+8);doc.text(mwst.toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y+8,{align:'right'});
   doc.setFont('helvetica','bold');doc.setFontSize(12);
   doc.setFillColor(245,240,220);doc.rect(130,y+12,66,10,'F');
-  doc.text('Bruttobetrag:',140,y+20);doc.text(parseFloat(r.betrag_brutto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y+20,{align:'right'});
+  doc.text('Brutto:',140,y+20);doc.text(parseFloat(r.betrag_brutto||0).toLocaleString('de-DE',{minimumFractionDigits:2})+' €',196,y+20,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
   doc.text('Zahlungsziel: 14 Tage netto',14,265);
   doc.save(r.rechnungsnummer+'.pdf');
 }
 
-// Buttons nutzen direkt onclick
-
-// ── TOAST ──
-function showOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>()=>t.classList.remove('show'),3000);}
-function showErr(m){const t=document.getElementById('toast-err');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
+function showOk(m){const t=document.getElementById('tok');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
+function showErr(m){const t=document.getElementById('ter');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),4000);}
 </script>
 </body>
 </html>
