@@ -32,10 +32,7 @@ body {
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--kohle);
   color: var(--weiss);
-  height: 100vh;
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
+  min-height: 100vh;
 }
 
 /* ══════════════════════════════
@@ -127,13 +124,7 @@ body {
 /* ══════════════════════════════
    APP SHELL
 ══════════════════════════════ */
-#app {
-  display: none;
-  height: 100vh;
-  display: none;
-  flex-direction: column;
-}
-#app.active { display: flex; }
+#app { display: none; }
 
 /* Header */
 .app-header {
@@ -264,13 +255,8 @@ body {
 /* ══════════════════════════════
    SCREENS (Stempel / Rapport / Dashboard / Auswertung / Rechnungen)
 ══════════════════════════════ */
-.screen { display: none; }
-.screen.active {
-  display: block;
-  height: calc(100vh - 54px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
+.screen { display: none !important; }
+.screen.active { display: block !important; }
 
 /* Back Button */
 .screen-header {
@@ -642,7 +628,7 @@ body {
 <body>
 
 <!-- ══════════════════ LOGIN ══════════════════ -->
-<div id="login-screen">
+<div id="login-screen" style="display:none;">
   <div class="login-mark">
     <!-- Logo: Stilisiertes "BD" Zirkel-Zeichen -->
     <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -717,7 +703,7 @@ body {
     </div>
 
     <div class="home-actions" style="padding:0 20px 40px;">
-      <div class="action-btn primary" data-screen="stempel" role="button" tabindex="0">
+      <div class="action-btn primary" role="button" tabindex="0" onclick="goScreen('stempel')">
         <div class="action-icon">⏱</div>
         <div class="action-text">
           <div class="action-title">Arbeitsbeginn / -ende</div>
@@ -726,7 +712,7 @@ body {
         <div class="action-arrow">›</div>
       </div>
 
-      <div class="action-btn" data-screen="rapport" role="button" tabindex="0">
+      <div class="action-btn" role="button" tabindex="0" onclick="goScreen('rapport')">
         <div class="action-icon">📋</div>
         <div class="action-text">
           <div class="action-title">Tagesrapport</div>
@@ -735,7 +721,7 @@ body {
         <div class="action-arrow">›</div>
       </div>
 
-      <div class="action-btn pl-only" data-screen="dashboard" role="button" tabindex="0" style="display:none!important;">
+      <div class="action-btn pl-only" role="button" tabindex="0" onclick="goScreen('dashboard')" style="display:none!important;">
         <span class="pl-badge">Projektleiter</span>
         <div class="action-icon">📊</div>
         <div class="action-text">
@@ -745,7 +731,7 @@ body {
         <div class="action-arrow">›</div>
       </div>
 
-      <div class="action-btn pl-only" data-screen="auswertung" role="button" tabindex="0" style="display:none!important;">
+      <div class="action-btn pl-only" role="button" tabindex="0" onclick="goScreen('auswertung')" style="display:none!important;">
         <div class="action-icon">📈</div>
         <div class="action-text">
           <div class="action-title">Auswertung</div>
@@ -754,7 +740,7 @@ body {
         <div class="action-arrow">›</div>
       </div>
 
-      <div class="action-btn pl-only" data-screen="rechnungen" role="button" tabindex="0" style="display:none!important;">
+      <div class="action-btn pl-only" role="button" tabindex="0" onclick="goScreen('rechnungen')" style="display:none!important;">
         <div class="action-icon">📄</div>
         <div class="action-text">
           <div class="action-title">Rechnungen</div>
@@ -982,17 +968,14 @@ async function doLogin(){
 async function startApp(ma){
   currentMa=ma;
   document.getElementById('login-screen').style.display='none';
-  const appEl = document.getElementById('app');
-  appEl.style.display='flex';
-  appEl.classList.add('active');
+  document.getElementById('app').style.display='block';
   document.getElementById('user-name').textContent=ma.name;
   document.getElementById('user-rolle').textContent=(ma.rolle||'')+'  ·  Abmelden';
   // PL-only Buttons — nur für nicht-Monteure sichtbar
   document.querySelectorAll('.pl-only').forEach(function(el) {
     el.style.display = (ma.rolle !== 'monteur') ? 'flex' : 'none';
   });
-  // Nach Anzeige Buttons neu binden
-  bindActionButtons();
+
   // Home Begrüssung
   const h=new Date().getHours();
   const gt=h<12?'Guten Morgen':h<17?'Guten Tag':'Guten Abend';
@@ -1007,9 +990,7 @@ async function doLogout(){
   clearInterval(uhrzeitInterval);clearInterval(stempelInterval);
   currentMa=null;aktiverStempel=null;
   localStorage.removeItem('musa_session');
-  const appEl2 = document.getElementById('app');
-  appEl2.style.display='none';
-  appEl2.classList.remove('active');
+  document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('l-pin').value='';
   document.getElementById('l-name').value='';
@@ -1019,36 +1000,50 @@ async function doLogout(){
 
 // Session wiederherstellen
 (async function(){
-  // Mitarbeiter-Liste laden
+  // Mitarbeiter-Liste für Login laden
   const {data:m}=await db.from('musa_mitarbeiter').select('id,name,rolle').order('name');
   if(m){
     const sel=document.getElementById('l-name');
-    m.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;sel.appendChild(o);});
+    m.forEach(function(x){
+      const o=document.createElement('option');
+      o.value=x.id; o.textContent=x.name;
+      sel.appendChild(o);
+    });
   }
-  // Session check
+  // Session nur wiederherstellen wenn vorhanden und frisch (max 8h)
   const s=localStorage.getItem('musa_session');
   if(s){
     try{
       const sess=JSON.parse(s);
-      if(Date.now()-sess.ts<8*3600*1000){
-        const {data}=await db.from('musa_mitarbeiter').select('*').eq('id',sess.maId).single();
-        if(data) await startApp(data);
-      } else { localStorage.removeItem('musa_session'); }
-    }catch(e){localStorage.removeItem('musa_session');}
+      if(Date.now()-sess.ts < 8*3600*1000){
+        const {data,error}=await db.from('musa_mitarbeiter').select('*').eq('id',sess.maId).single();
+        if(data && !error){
+          await startApp(data);
+          return; // Login überspringen
+        }
+      }
+      localStorage.removeItem('musa_session');
+    }catch(e){ localStorage.removeItem('musa_session'); }
   }
+  // Standard: Login anzeigen
+  document.getElementById('login-screen').style.display='flex';
 })();
 
 // ── NAVIGATION ──
 function goScreen(name){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.classList.remove('active');
+  });
+  var t=document.getElementById('screen-'+name);
+  if(t){ t.classList.add('active'); window.scrollTo(0,0); }
   if(name==='dashboard')renderDashboard();
   if(name==='auswertung')renderAuswertung();
   if(name==='rechnungen')renderRechnungen();
 }
 function goHome(){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById('screen-home').classList.add('active');
+  window.scrollTo(0,0);
   updateHomeBanner();
 }
 
@@ -1403,17 +1398,7 @@ function pdfErstellen(r,pn){
   doc.save(r.rechnungsnummer+'.pdf');
 }
 
-// ── BUTTON BINDING ──
-function bindActionButtons() {
-  document.querySelectorAll('.action-btn[data-screen]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var screen = btn.getAttribute('data-screen');
-      if (screen) goScreen(screen);
-    });
-  });
-}
-document.addEventListener('DOMContentLoaded', bindActionButtons);
-if (document.readyState !== 'loading') bindActionButtons();
+// Buttons nutzen direkt onclick
 
 // ── TOAST ──
 function showOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>()=>t.classList.remove('show'),3000);}
