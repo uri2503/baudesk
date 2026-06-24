@@ -32,8 +32,10 @@ body {
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--kohle);
   color: var(--weiss);
-  min-height: 100vh;
-  overflow-x: hidden;
+  height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
 }
 
 /* ══════════════════════════════
@@ -125,7 +127,13 @@ body {
 /* ══════════════════════════════
    APP SHELL
 ══════════════════════════════ */
-#app { display: none; min-height: 100vh; }
+#app {
+  display: none;
+  height: 100vh;
+  display: none;
+  flex-direction: column;
+}
+#app.active { display: flex; }
 
 /* Header */
 .app-header {
@@ -158,7 +166,6 @@ body {
 ══════════════════════════════ */
 #screen-home {
   display: flex; flex-direction: column;
-  min-height: calc(100vh - 54px);
   padding: 28px 20px 40px;
 }
 
@@ -218,6 +225,7 @@ body {
   position: relative; overflow: hidden;
   -webkit-tap-highlight-color: rgba(0,0,0,0);
   touch-action: manipulation;
+  cursor: pointer;
 }
 .action-btn:active { transform: scale(0.98); }
 .action-btn:hover { border-color: var(--amber); }
@@ -257,7 +265,12 @@ body {
    SCREENS (Stempel / Rapport / Dashboard / Auswertung / Rechnungen)
 ══════════════════════════════ */
 .screen { display: none; }
-.screen.active { display: block; }
+.screen.active {
+  display: block;
+  height: calc(100vh - 54px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* Back Button */
 .screen-header {
@@ -969,7 +982,9 @@ async function doLogin(){
 async function startApp(ma){
   currentMa=ma;
   document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
+  const appEl = document.getElementById('app');
+  appEl.style.display='flex';
+  appEl.classList.add('active');
   document.getElementById('user-name').textContent=ma.name;
   document.getElementById('user-rolle').textContent=(ma.rolle||'')+'  ·  Abmelden';
   // PL-only Buttons — nur für nicht-Monteure sichtbar
@@ -992,7 +1007,9 @@ async function doLogout(){
   clearInterval(uhrzeitInterval);clearInterval(stempelInterval);
   currentMa=null;aktiverStempel=null;
   localStorage.removeItem('musa_session');
-  document.getElementById('app').style.display='none';
+  const appEl2 = document.getElementById('app');
+  appEl2.style.display='none';
+  appEl2.classList.remove('active');
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('l-pin').value='';
   document.getElementById('l-name').value='';
@@ -1386,21 +1403,16 @@ function pdfErstellen(r,pn){
   doc.save(r.rechnungsnummer+'.pdf');
 }
 
-// ── iOS TOUCH FIX ──
+// ── BUTTON BINDING ──
 function bindActionButtons() {
   document.querySelectorAll('.action-btn[data-screen]').forEach(function(btn) {
-    ['click','touchend'].forEach(function(evt) {
-      btn.addEventListener(evt, function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var screen = btn.getAttribute('data-screen');
-        if (screen) goScreen(screen);
-      }, {passive: false});
+    btn.addEventListener('click', function() {
+      var screen = btn.getAttribute('data-screen');
+      if (screen) goScreen(screen);
     });
   });
 }
 document.addEventListener('DOMContentLoaded', bindActionButtons);
-// Auch direkt aufrufen falls DOM schon geladen
 if (document.readyState !== 'loading') bindActionButtons();
 
 // ── TOAST ──
