@@ -274,7 +274,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .gl{font-size:11px;color:var(--g);text-transform:uppercase;letter-spacing:.08em;}
 .gc{text-align:right;}
 .gcv{font-size:26px;font-weight:900;}
-.mak{background:var(--k2);border:1px solid var(--r);border-radius:14px;padding:15px;margin-bottom:10px;}
+.mak{background:var(--k2);border:1px solid var(--r);border-radius:14px;margin-bottom:8px;overflow:hidden;}
 .mat{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
 .man{font-size:15px;font-weight:700;}
 .mar{font-size:10px;font-weight:700;text-transform:uppercase;background:var(--k3);
@@ -1008,7 +1008,7 @@ function renderMAList(arr){
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="text-align:right;">
-            <div class="mav">${m.h.toFixed(1)}</div>
+            <div class="mav">${fmtStd(m.h)}</div>
             <div class="mavl">${m.rp} Rapporte · ${m.tg.size} Tage</div>
           </div>
           <span id="mak-arr-${idx}" style="font-size:16px;color:var(--g);transition:transform .2s;flex-shrink:0;">▾</span>
@@ -1052,16 +1052,18 @@ function toggleMA(idx){
     // Rapporte laden
     const rlist=document.getElementById('mak-rlist-'+idx);
     const maId=window['_maId_'+idx];
-    const rr=(window._auswRapporte||[]).filter(r=>r.mitarbeiter_id===maId).sort((a,b)=>b.datum.localeCompare(a.datum));
+    const maArr=window._maArr||[];
+    const maObj=maArr.find(m=>m.maId===maId);
+    const rr=maObj?maObj.rapporte.sort((a,b)=>b.datum.localeCompare(a.datum)):[];
     if(!rr.length){rlist.innerHTML='<div style="color:var(--g);font-size:13px;padding:8px 0;">Keine Rapporte im Zeitraum.</div>';return;}
     rlist.innerHTML=rr.map(r=>`
-      <div style="padding:10px 0;border-bottom:1px solid var(--r);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:700;">${r.musa_projekte?.name||'—'}</div>
-          <div style="font-size:11px;color:var(--g);">${r.datum} · ${r.leistung}</div>
-          <div style="font-size:12px;color:var(--tx);margin-top:2px;">${r.beschreibung}</div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--r);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
+          <div style="font-size:14px;font-weight:800;color:var(--w);">${r.musa_projekte?.name||'—'}</div>
+          <div style="font-size:16px;font-weight:900;color:var(--a);white-space:nowrap;">${r.stunden}h</div>
         </div>
-        <div style="font-size:15px;font-weight:800;color:var(--a);white-space:nowrap;">${r.stunden}h</div>
+        <div style="font-size:11px;color:var(--g);margin-bottom:5px;">${r.datum} · ${r.leistung}</div>
+        <div style="font-size:12px;color:var(--tx);line-height:1.5;padding:8px 10px;background:var(--k3);border-radius:6px;">${r.beschreibung}</div>
       </div>`).join('');
   }
 }
