@@ -8,6 +8,7 @@
 <title>BauDesk</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -295,6 +296,22 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .mas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .masv{font-size:17px;font-weight:800;text-align:center;}
 .masl{font-size:10px;color:var(--g);text-transform:uppercase;text-align:center;margin-top:1px;}
+
+/* ── ANALYSE-BLÖCKE (Charts/Listen in Detailkarten) ── */
+.anb{border-top:1px solid var(--r);padding-top:14px;margin-top:14px;}
+.anb-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--g);margin-bottom:10px;}
+.anb-chart{position:relative;height:200px;}
+.anb-row{margin-bottom:8px;}
+.anb-row-h{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;gap:8px;}
+.anb-row-n{color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.anb-row-v{color:var(--a);font-weight:700;white-space:nowrap;}
+.anb-empty{color:var(--g);font-size:13px;padding:6px 0;}
+.anb-kpi{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--k3);border-radius:10px;padding:12px 14px;}
+.anb-kpi-t{font-size:13px;color:var(--tx);}
+.anb-badge{font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;white-space:nowrap;}
+.anb-badge.ok{background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.3);}
+.anb-badge.warn{background:rgba(239,68,68,.12);color:var(--rt);border:1px solid rgba(239,68,68,.3);}
 
 /* ── RECHNUNGEN ── */
 .rech{padding:16px;}
@@ -627,6 +644,94 @@ const db=supabase.createClient(SB,SK);
 let MA=null,projekte=[],selL=null,fotoData=[],filter='alle',period='woche',aktStempel=null;
 let uhrI=null,stI=null;
 
+// ── CHART-HELPER (Auswertung/Dashboard) ──
+// Feste Reihenfolge & Farben je Leistungsbereich (Identität bleibt über beide Charts stabil)
+const LEISTUNG_ORDER=['Elektroinstallation','Erneuerbare Energien','Sicherheit','Haustechnik','Industrie & Gewerbe','Licht & Leuchten','Elektromobilität','Multimedia'];
+const LEISTUNG_COLORS={
+  'Elektroinstallation':'#3987e5','Erneuerbare Energien':'#199e70','Sicherheit':'#c98500',
+  'Haustechnik':'#008300','Industrie & Gewerbe':'#9085e9','Licht & Leuchten':'#e66767',
+  'Elektromobilität':'#d55181','Multimedia':'#d95926'
+};
+const CHART_FALLBACK='#71717A';
+function leistungColor(name){return LEISTUNG_COLORS[name]||CHART_FALLBACK;}
+function leistungAggregat(rapporte){
+  const map={};
+  rapporte.forEach(r=>{const k=r.leistung||'—';map[k]=(map[k]||0)+(r.stunden||0);});
+  const keys=Object.keys(map).sort((a,b)=>{
+    const ia=LEISTUNG_ORDER.indexOf(a),ib=LEISTUNG_ORDER.indexOf(b);
+    if(ia===-1&&ib===-1)return a.localeCompare(b);
+    if(ia===-1)return 1;if(ib===-1)return -1;return ia-ib;
+  });
+  return {labels:keys,data:keys.map(k=>map[k]),colors:keys.map(leistungColor)};
+}
+function cssVar(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
+function chartLegendOpts(){
+  return {labels:{color:cssVar('--g'),font:{size:11},padding:12,boxWidth:12}};
+}
+function chartGridOpts(){
+  return {color:'rgba(255,255,255,.06)'};
+}
+function chartTickOpts(){
+  return {color:cssVar('--g'),font:{size:10}};
+}
+function mondayOf(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;}
+function isoDat(d){return d.toISOString().split('T')[0];}
+function last8WeekRanges(){
+  const weeks=[];
+  const thisMonday=mondayOf(new Date());
+  for(let i=7;i>=0;i--){
+    const mo=new Date(thisMonday);mo.setDate(mo.getDate()-i*7);
+    const su=new Date(mo);su.setDate(su.getDate()+6);
+    weeks.push({startStr:isoDat(mo),endStr:isoDat(su),label:mo.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})});
+  }
+  return weeks;
+}
+function weekRangesSince(startDate){
+  const weeks=[];
+  const start=mondayOf(startDate);
+  const end=mondayOf(new Date());
+  let mo=new Date(start);
+  while(mo<=end){
+    const su=new Date(mo);su.setDate(su.getDate()+6);
+    weeks.push({startStr:isoDat(mo),endStr:isoDat(su),label:mo.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})});
+    mo=new Date(mo);mo.setDate(mo.getDate()+7);
+  }
+  return weeks;
+}
+function stundenProWoche(rapporte,weeks){
+  return weeks.map(w=>rapporte.filter(r=>r.datum>=w.startStr&&r.datum<=w.endStr).reduce((s,r)=>s+(r.stunden||0),0));
+}
+function balkenListe(items){
+  if(!items.length)return '<div class="anb-empty">Keine Daten.</div>';
+  const max=items[0].h||1;
+  return items.map(it=>`
+    <div class="anb-row">
+      <div class="anb-row-h"><span class="anb-row-n">${it.name}</span><span class="anb-row-v">${fmtStd(it.h)}</span></div>
+      <div class="bar-t"><div class="bar-f" style="width:${Math.round((it.h/max)*100)}%"></div></div>
+    </div>`).join('');
+}
+function erstelleLeistDoughnut(canvasId,leist){
+  return new Chart(document.getElementById(canvasId),{
+    type:'doughnut',
+    data:{labels:leist.labels,datasets:[{data:leist.data,backgroundColor:leist.colors,borderColor:cssVar('--k2'),borderWidth:2}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:chartLegendOpts().labels}}}
+  });
+}
+function erstelleStundenBarChart(canvasId,labels,data){
+  return new Chart(document.getElementById(canvasId),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Stunden',data,backgroundColor:cssVar('--a'),borderRadius:4,maxBarThickness:28}]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:chartTickOpts()},
+        y:{beginAtZero:true,grid:chartGridOpts(),ticks:chartTickOpts()}
+      }
+    }
+  });
+}
+
 // ── LOGIN ──
 async function doLogin(){
   const id=document.getElementById('lname').value;
@@ -917,6 +1022,11 @@ async function rapportSenden(){
 function setFil(v,el){filter=v;document.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));el.classList.add('on');populateProjSelect(true);renderProjektKarte();}
 
 let dashData=[],ausgewaehltesProjekt=null;
+let chartPrVerlauf=null,chartPrLeistung=null;
+function destroyPrCharts(){
+  if(chartPrVerlauf){chartPrVerlauf.destroy();chartPrVerlauf=null;}
+  if(chartPrLeistung){chartPrLeistung.destroy();chartPrLeistung=null;}
+}
 
 async function renderDash(){
   const el=document.getElementById('plist');
@@ -960,6 +1070,7 @@ function waehleProjekt(pid){
 
 function renderProjektKarte(){
   const el=document.getElementById('plist');
+  destroyPrCharts();
   if(!ausgewaehltesProjekt){el.innerHTML='';return;}
   const p=projekte.find(x=>x.id===ausgewaehltesProjekt);
   if(!p){el.innerHTML='';return;}
@@ -976,6 +1087,24 @@ function renderProjektKarte(){
     const th=x.fotos&&x.fotos.length>0?`<img src="${x.fotos[0]}" class="rt">`:`<div class="rnt">📋</div>`;
     return `<div class="ri">${th}<div class="rb"><div class="rtp"><div class="rnm">${mn}</div><div class="rts">${ds}</div></div><div class="rdesc">${x.beschreibung}</div><div class="rmeta">⏱ ${x.stunden}h · ${x.leistung}</div></div></div>`;
   }).join('');
+
+  // Stundenverteilung nach Mitarbeiter
+  const maMap={};
+  pr.forEach(x=>{const k=x.musa_mitarbeiter?.name||'—';maMap[k]=(maMap[k]||0)+(x.stunden||0);});
+  const maListe=Object.entries(maMap).map(([name,h])=>({name,h})).sort((a,b)=>b.h-a.h);
+
+  // Zeitlicher Verlauf: Stunden pro Woche seit dem ersten Rapport-Datum
+  const datenSorted=pr.map(x=>x.datum).filter(Boolean).sort();
+  let verlaufLabels=[],verlaufData=[];
+  if(datenSorted.length){
+    const weeks=weekRangesSince(new Date(datenSorted[0]));
+    verlaufLabels=weeks.map(w=>w.label);
+    verlaufData=stundenProWoche(pr,weeks);
+  }
+
+  // Leistungsbereiche im Projekt
+  const leist=leistungAggregat(pr);
+
   el.innerHTML=`<div class="pk op">
     <div class="ph">
       <div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div><div class="ptags">${tags}</div></div>
@@ -983,13 +1112,39 @@ function renderProjektKarte(){
     </div>
     <div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="zuR('${p.id}')">📄 Rechnung</button></div>
     <div class="rp" style="display:block;">${rhtml}</div>
+    <div style="padding:14px;">
+      <div class="anb">
+        <div class="anb-t">Stunden nach Mitarbeiter</div>
+        ${balkenListe(maListe)}
+      </div>
+      <div class="anb">
+        <div class="anb-t">Zeitlicher Verlauf (pro Woche)</div>
+        ${verlaufData.length?'<div class="anb-chart"><canvas id="chPrVerlauf"></canvas></div>':'<div class="anb-empty">Keine Daten.</div>'}
+      </div>
+      <div class="anb">
+        <div class="anb-t">Leistungsbereiche im Projekt</div>
+        ${leist.labels.length?'<div class="anb-chart"><canvas id="chPrLeistung"></canvas></div>':'<div class="anb-empty">Keine Daten.</div>'}
+      </div>
+    </div>
   </div>`;
+
+  if(verlaufData.length){
+    chartPrVerlauf=erstelleStundenBarChart('chPrVerlauf',verlaufLabels,verlaufData);
+  }
+  if(leist.labels.length){
+    chartPrLeistung=erstelleLeistDoughnut('chPrLeistung',leist);
+  }
 }
 
 function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
 
 // ── AUSWERTUNG ──
 let ausgewaehlteMA=null;
+let chartMaLeistung=null,chartMaWochen=null;
+function destroyMaCharts(){
+  if(chartMaLeistung){chartMaLeistung.destroy();chartMaLeistung=null;}
+  if(chartMaWochen){chartMaWochen.destroy();chartMaWochen=null;}
+}
 
 function setPer(p,el){period=p;document.querySelectorAll('.ptb').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderAusw();}
 
@@ -1000,7 +1155,7 @@ async function renderAusw(){
   if(period==='woche'){const mo=new Date(h);mo.setDate(h.getDate()-h.getDay()+1);von=mo.toISOString().split('T')[0];}
   else if(period==='monat'){von=new Date(h.getFullYear(),h.getMonth(),1).toISOString().split('T')[0];}
   else{von='2000-01-01';}
-  const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name,rolle)').gte('datum',von);
+  const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name,rolle),musa_projekte(name)').gte('datum',von);
   const r=rr||[];
   const gh=r.reduce((s,x)=>s+(x.stunden||0),0);
   ag.innerHTML=`<div class="gk"><div><div class="gl">${period==='woche'?'Diese Woche':period==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gv">${gh.toFixed(1)}h</div></div><div class="gc"><div class="gl">Rapporte</div><div class="gcv">${r.length}</div></div></div>`;
@@ -1010,7 +1165,9 @@ async function renderAusw(){
   // Alle Rapporte + aggregierte Mitarbeiterliste für die Auswahl speichern
   window._auswRapporte = r;
   window._maArr = arr;
+  window._auswVon = von;
   ausgewaehlteMA = null;
+  destroyMaCharts();
   populateMaSelect(false);
   al.innerHTML = arr.length ? '' : '<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';
 }
@@ -1075,12 +1232,14 @@ async function renderRech(){
   }).join('');
 }
 
-function renderMaKarte(){
+async function renderMaKarte(){
   const al=document.getElementById('al');
   const arr=window._maArr||[];
+  destroyMaCharts();
   if(!ausgewaehlteMA){al.innerHTML='';return;}
   const m=arr.find(x=>x.maId===ausgewaehlteMA);
   if(!m){al.innerHTML='';return;}
+  const meineAnfrage=ausgewaehlteMA;
   const mx=arr.length>0?arr[0].h:1;
   const pct=Math.round((m.h/mx)*100);
   const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
@@ -1094,6 +1253,32 @@ function renderMaKarte(){
         <div style="font-size:11px;color:var(--g);margin-bottom:5px;">${r.datum} · ${r.leistung}</div>
         <div style="font-size:12px;color:var(--tx);line-height:1.5;padding:8px 10px;background:var(--k3);border-radius:6px;">${r.beschreibung}</div>
       </div>`).join(''):'<div style="color:var(--g);font-size:13px;padding:8px 0;">Keine Rapporte im Zeitraum.</div>';
+
+  // Verteilung nach Leistungsbereich
+  const leist=leistungAggregat(m.rapporte);
+
+  // Verteilung nach Projekt (Liste/Balken)
+  const projMap={};
+  m.rapporte.forEach(r=>{const k=r.musa_projekte?.name||'—';projMap[k]=(projMap[k]||0)+(r.stunden||0);});
+  const projListe=Object.entries(projMap).map(([name,h])=>({name,h})).sort((a,b)=>b.h-a.h);
+
+  // Wochentrend: letzte 8 Kalenderwochen (bei woche/monat separat aus DB, sonst aus vorhandenen Rapporten)
+  // Offene Rapporte: Stempeluhr-Einträge im gewählten Zeitraum ohne passenden Rapport (Datum+Projekt)
+  const weeks=last8WeekRanges();
+  const von=window._auswVon||'2000-01-01';
+  const brauchtTrendFetch=(period==='woche'||period==='monat');
+  const [trendRes,stempelRes]=await Promise.all([
+    brauchtTrendFetch?db.from('musa_rapporte').select('datum,stunden').eq('mitarbeiter_id',m.maId).gte('datum',weeks[0].startStr):Promise.resolve({data:m.rapporte}),
+    db.from('musa_stempeluhr').select('gestempelt_ein,projekt_id').eq('mitarbeiter_id',m.maId).not('gestempelt_aus','is',null).gte('gestempelt_ein',von)
+  ]);
+  if(ausgewaehlteMA!==meineAnfrage)return; // Auswahl hat sich während des Ladens geändert
+  const trendQuelle=trendRes.data||[];
+  const trendData=stundenProWoche(trendQuelle,weeks);
+  const trendLabels=weeks.map(w=>w.label);
+  const stempel=stempelRes.data;
+  const rapportKeys=new Set(m.rapporte.map(r=>r.datum+'_'+r.projekt_id));
+  const offeneCount=(stempel||[]).filter(s=>!rapportKeys.has(s.gestempelt_ein.split('T')[0]+'_'+s.projekt_id)).length;
+
   al.innerHTML=`<div class="mak">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
       <div>
@@ -1112,10 +1297,39 @@ function renderMaKarte(){
         <div><div class="masv">${m.tg.size}</div><div class="masl">Einsatztage</div></div>
         <div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div>
       </div>
-      <div style="border-top:1px solid var(--r);padding-top:10px;">${rhtml}</div>
+
+      <div class="anb">
+        <div class="anb-t">Offene Rapporte</div>
+        <div class="anb-kpi">
+          <div class="anb-kpi-t">${offeneCount} offene Rapporte im gewählten Zeitraum</div>
+          <div class="anb-badge ${offeneCount>0?'warn':'ok'}">${offeneCount>0?'⚠️ '+offeneCount:'✅ 0'}</div>
+        </div>
+      </div>
+
+      <div class="anb">
+        <div class="anb-t">Verteilung nach Leistungsbereich</div>
+        ${leist.labels.length?'<div class="anb-chart"><canvas id="chMaLeistung"></canvas></div>':'<div class="anb-empty">Keine Daten.</div>'}
+      </div>
+
+      <div class="anb">
+        <div class="anb-t">Verteilung nach Projekt</div>
+        ${balkenListe(projListe)}
+      </div>
+
+      <div class="anb">
+        <div class="anb-t">Wochentrend (letzte 8 Wochen)</div>
+        <div class="anb-chart"><canvas id="chMaWochen"></canvas></div>
+      </div>
+
+      <div style="border-top:1px solid var(--r);padding-top:10px;margin-top:14px;">${rhtml}</div>
       <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:10px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
     </div>
   </div>`;
+
+  if(leist.labels.length){
+    chartMaLeistung=erstelleLeistDoughnut('chMaLeistung',leist);
+  }
+  chartMaWochen=erstelleStundenBarChart('chMaWochen',trendLabels,trendData);
 }
 
 function pdfMA(name, maId){
