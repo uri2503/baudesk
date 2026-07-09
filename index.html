@@ -553,18 +553,19 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
           <button class="ptb" onclick="setPer('gesamt',this)">Gesamt</button>
         </div>
         <div id="ag"></div>
-        <!-- Such- und Filterleiste -->
+        <!-- Rollenfilter und Mitarbeiterauswahl -->
         <div style="display:flex;gap:8px;margin-bottom:14px;">
-          <input type="text" id="ma-suche" class="fi" placeholder="🔍 Mitarbeiter suchen…"
-            oninput="filterMA()" style="flex:1;font-size:14px;">
-          <select id="ma-rolle" class="fs" onchange="filterMA()" style="width:auto;min-width:110px;font-size:13px;">
+          <select id="ma-rolle" class="fs" onchange="onRolleChange()" style="width:auto;min-width:110px;font-size:13px;">
             <option value="">Alle Rollen</option>
             <option value="monteur">Monteur</option>
             <option value="bauleiter">Bauleiter</option>
             <option value="projektleiter">Projektleiter</option>
           </select>
+          <select id="ma-select" class="fs" onchange="onMaSelect()" style="flex:1;font-size:14px;">
+            <option value="">— Mitarbeiter auswählen —</option>
+          </select>
         </div>
-        <div id="al"><div class="load"><div class="spinner"></div></div></div>
+        <div id="al"></div>
       </div>
     </div>
 
@@ -988,6 +989,8 @@ function renderProjektKarte(){
 function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
 
 // ── AUSWERTUNG ──
+let ausgewaehlteMA=null;
+
 function setPer(p,el){period=p;document.querySelectorAll('.ptb').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderAusw();}
 
 async function renderAusw(){
@@ -1004,12 +1007,43 @@ async function renderAusw(){
   const mm={};
   r.forEach(x=>{const id=x.mitarbeiter_id;if(!mm[id])mm[id]={maId:id,n:x.musa_mitarbeiter?.name||'—',ro:x.musa_mitarbeiter?.rolle||'',h:0,rp:0,tg:new Set(),rapporte:[]};mm[id].h+=(x.stunden||0);mm[id].rp++;mm[id].tg.add(x.datum);mm[id].rapporte.push(x);});
   const arr=Object.values(mm).sort((a,b)=>b.h-a.h);
-  const mx=arr.length>0?arr[0].h:1;
-  if(!arr.length){al.innerHTML='<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';return;}
-  // Alle Rapporte pro MA speichern für Detailansicht
+  // Alle Rapporte + aggregierte Mitarbeiterliste für die Auswahl speichern
   window._auswRapporte = r;
-  window._maArr = arr; // für Filter
-  renderMAList(arr);
+  window._maArr = arr;
+  ausgewaehlteMA = null;
+  populateMaSelect(false);
+  al.innerHTML = arr.length ? '' : '<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';
+}
+
+function gefiltertMA(){
+  const rolle=document.getElementById('ma-rolle').value;
+  const arr=window._maArr||[];
+  return rolle?arr.filter(m=>m.ro===rolle):arr;
+}
+
+function populateMaSelect(keepSelection){
+  const sel=document.getElementById('ma-select');
+  const cur=keepSelection?sel.value:'';
+  const gf=gefiltertMA();
+  sel.innerHTML='<option value="">— Mitarbeiter auswählen —</option>'+gf.map(m=>`<option value="${m.maId}">${m.n}</option>`).join('');
+  if(cur&&gf.some(m=>m.maId===cur)){
+    sel.value=cur;
+    ausgewaehlteMA=cur;
+  }else{
+    sel.value='';
+    ausgewaehlteMA=null;
+  }
+}
+
+function onRolleChange(){
+  ausgewaehlteMA=null;
+  populateMaSelect(false);
+  renderMaKarte();
+}
+
+function onMaSelect(){
+  ausgewaehlteMA=document.getElementById('ma-select').value||null;
+  renderMaKarte();
 }
 
 // ── RECHNUNGEN ──
@@ -1041,70 +1075,17 @@ async function renderRech(){
   }).join('');
 }
 
-function renderMAList(arr){
-  const mx=arr.length>0?arr[0].h:1;
+function renderMaKarte(){
   const al=document.getElementById('al');
-  if(!arr.length){al.innerHTML='<div class="empty"><div class="ei">🔍</div>Kein Ergebnis.</div>';return;}
-  al.innerHTML=arr.map((m,idx)=>{
-    const pct=Math.round((m.h/mx)*100);
-    const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
-    return `<div class="mak" id="mak-${idx}" data-name="${m.n.toLowerCase()}" data-rolle="${m.ro}">
-      <div onclick="toggleMA(${idx})" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">
-        <div>
-          <div class="man">${m.n}</div>
-          <span class="mar">${rl}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="text-align:right;">
-            <div class="mav">${fmtStd(m.h)}</div>
-            <div class="mavl">${m.rp} Rapporte · ${m.tg.size} Tage</div>
-          </div>
-          <span id="mak-arr-${idx}" style="font-size:16px;color:var(--g);transition:transform .2s;flex-shrink:0;">▾</span>
-        </div>
-      </div>
-      <!-- Aufgeklappt: Bar + Stats + Rapporte -->
-      <div id="mak-detail-${idx}" style="display:none;margin-top:12px;">
-        <div class="bar-t"><div class="bar-f" style="width:${pct}%"></div></div>
-        <div class="mas" style="margin:10px 0;">
-          <div><div class="masv">${m.rp}</div><div class="masl">Rapporte</div></div>
-          <div><div class="masv">${m.tg.size}</div><div class="masl">Einsatztage</div></div>
-          <div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div>
-        </div>
-        <div id="mak-rlist-${idx}" style="border-top:1px solid var(--r);padding-top:10px;"></div>
-        <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:10px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
-      </div>
-    </div>`;
-  }).join('');
-  arr.forEach((m,idx)=>{ window['_maId_'+idx]=m.maId; });
-}
-
-function filterMA(){
-  const suche=document.getElementById('ma-suche').value.toLowerCase();
-  const rolle=document.getElementById('ma-rolle').value;
   const arr=window._maArr||[];
-  const gefiltert=arr.filter(m=>{
-    const nameOk=!suche||m.n.toLowerCase().includes(suche);
-    const rolleOk=!rolle||m.ro===rolle;
-    return nameOk&&rolleOk;
-  });
-  renderMAList(gefiltert);
-}
-
-function toggleMA(idx){
-  const det=document.getElementById('mak-detail-'+idx);
-  const arr=document.getElementById('mak-arr-'+idx);
-  const open=det.style.display==='block';
-  det.style.display=open?'none':'block';
-  arr.style.transform=open?'':'rotate(180deg)';
-  if(!open){
-    // Rapporte laden
-    const rlist=document.getElementById('mak-rlist-'+idx);
-    const maId=window['_maId_'+idx];
-    const maArr=window._maArr||[];
-    const maObj=maArr.find(m=>m.maId===maId);
-    const rr=maObj?maObj.rapporte.sort((a,b)=>b.datum.localeCompare(a.datum)):[];
-    if(!rr.length){rlist.innerHTML='<div style="color:var(--g);font-size:13px;padding:8px 0;">Keine Rapporte im Zeitraum.</div>';return;}
-    rlist.innerHTML=rr.map(r=>`
+  if(!ausgewaehlteMA){al.innerHTML='';return;}
+  const m=arr.find(x=>x.maId===ausgewaehlteMA);
+  if(!m){al.innerHTML='';return;}
+  const mx=arr.length>0?arr[0].h:1;
+  const pct=Math.round((m.h/mx)*100);
+  const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
+  const rr=m.rapporte.slice().sort((a,b)=>b.datum.localeCompare(a.datum));
+  const rhtml=rr.length?rr.map(r=>`
       <div style="padding:12px 0;border-bottom:1px solid var(--r);">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
           <div style="font-size:14px;font-weight:800;color:var(--w);">${r.musa_projekte?.name||'—'}</div>
@@ -1112,8 +1093,29 @@ function toggleMA(idx){
         </div>
         <div style="font-size:11px;color:var(--g);margin-bottom:5px;">${r.datum} · ${r.leistung}</div>
         <div style="font-size:12px;color:var(--tx);line-height:1.5;padding:8px 10px;background:var(--k3);border-radius:6px;">${r.beschreibung}</div>
-      </div>`).join('');
-  }
+      </div>`).join(''):'<div style="color:var(--g);font-size:13px;padding:8px 0;">Keine Rapporte im Zeitraum.</div>';
+  al.innerHTML=`<div class="mak">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div>
+        <div class="man">${m.n}</div>
+        <span class="mar">${rl}</span>
+      </div>
+      <div style="text-align:right;">
+        <div class="mav">${fmtStd(m.h)}</div>
+        <div class="mavl">${m.rp} Rapporte · ${m.tg.size} Tage</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;">
+      <div class="bar-t"><div class="bar-f" style="width:${pct}%"></div></div>
+      <div class="mas" style="margin:10px 0;">
+        <div><div class="masv">${m.rp}</div><div class="masl">Rapporte</div></div>
+        <div><div class="masv">${m.tg.size}</div><div class="masl">Einsatztage</div></div>
+        <div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div>
+      </div>
+      <div style="border-top:1px solid var(--r);padding-top:10px;">${rhtml}</div>
+      <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:10px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
+    </div>
+  </div>`;
 }
 
 function pdfMA(name, maId){
