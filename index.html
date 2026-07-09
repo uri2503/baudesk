@@ -244,6 +244,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .pd-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pd-kunde{font-size:12px;color:var(--g);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pd-empty{padding:16px;text-align:center;font-size:13px;color:var(--g);}
+.pd-more{padding:10px 14px;text-align:center;font-size:12px;font-weight:700;color:var(--g);}
 .fil-r{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;}
 .fil-r::-webkit-scrollbar{display:none;}
 .fc{flex-shrink:0;padding:6px 14px;background:var(--k2);border:1px solid var(--r);
@@ -963,13 +964,15 @@ function onProjSearch(){
   const sm={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
   if(!gf.length){dd.innerHTML='<div class="pd-empty">Kein Projekt gefunden.</div>';}
   else{
-    dd.innerHTML=gf.map(p=>{
+    const MAX=6;
+    dd.innerHTML=gf.slice(0,MAX).map(p=>{
       const [sc,sl]=sm[p.status]||['so',p.status];
       return `<div class="pd-item" onclick="waehleProjekt('${p.id}')">
         <div class="pd-info"><div class="pd-name">${p.name}</div><div class="pd-kunde">${p.kunde||''}</div></div>
         <span class="sp ${sc}">${sl}</span>
       </div>`;
     }).join('');
+    if(gf.length>MAX)dd.innerHTML+=`<div class="pd-more">+${gf.length-MAX} weitere</div>`;
   }
   dd.classList.add('on');
 }
