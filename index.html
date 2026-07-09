@@ -238,8 +238,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .pill-a{background:rgba(59,130,246,.12);color:var(--bl);border:1px solid rgba(59,130,246,.25);}
 .pill-ab{background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.25);}
 .pill-g{background:rgba(161,161,170,.1);color:var(--g);border:1px solid var(--r);}
-.parr{font-size:15px;color:var(--g);transition:transform .2s;}
-.pk.op .parr{transform:rotate(180deg);}
+.parr{font-size:15px;color:var(--g);}
 .pf{padding:10px 14px;border-top:1px solid var(--r);
   display:flex;align-items:center;justify-content:space-between;}
 .pstd{font-size:16px;font-weight:800;color:var(--a);}
@@ -902,41 +901,67 @@ async function rapportSenden(){
 // ── DASHBOARD ──
 function setFil(v,el){filter=v;document.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderDash();}
 
+let dashData=[],offenesProjekt=null;
+
 async function renderDash(){
   const el=document.getElementById('plist');el.innerHTML='<div class="load"><div class="sp"></div></div>';
   try{
     const heute=new Date().toISOString().split('T')[0];
     const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name),musa_projekte(name)').order('created_at',{ascending:false});
-    const r=rr||[];
+    dashData=rr||[];
     document.getElementById('kp').textContent=projekte.length;
-    document.getElementById('kh').textContent=r.filter(x=>x.datum===heute).length;
-    document.getElementById('ks').textContent=r.reduce((s,x)=>s+(x.stunden||0),0).toFixed(1).replace('.0','');
+    document.getElementById('kh').textContent=dashData.filter(x=>x.datum===heute).length;
+    document.getElementById('ks').textContent=dashData.reduce((s,x)=>s+(x.stunden||0),0).toFixed(1).replace('.0','');
     document.getElementById('ka').textContent=projekte.filter(p=>p.status==='aktiv'||p.status==='offen').length;
-    let gf=projekte;
-    if(filter!=='alle')gf=projekte.filter(p=>p.leistungen&&p.leistungen.includes(filter));
-    el.innerHTML='';
-    if(!gf.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>Keine Projekte.</div>';return;}
-    const sm={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
-    gf.forEach(p=>{
-      const pr=r.filter(x=>x.projekt_id===p.id);
-      const sh=pr.reduce((s,x)=>s+(x.stunden||0),0);
-      const [sc,sl]=sm[p.status]||['so',p.status];
-      const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${l}</span>`).join('');
-      const rhtml=pr.length===0?'<div class="empty-p">Noch keine Rapporte</div>':pr.map(x=>{
+    renderPlist();
+  }catch(e){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${e.message}</div>`;}
+}
+
+function renderPlist(){
+  const el=document.getElementById('plist');
+  const r=dashData;
+  let gf=projekte;
+  if(filter!=='alle')gf=projekte.filter(p=>p.leistungen&&p.leistungen.includes(filter));
+  if(!gf.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>Keine Projekte.</div>';return;}
+  const sm={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
+  el.innerHTML=gf.map(p=>{
+    const pr=r.filter(x=>x.projekt_id===p.id);
+    const sh=pr.reduce((s,x)=>s+(x.stunden||0),0);
+    const [sc,sl]=sm[p.status]||['so',p.status];
+    const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${l}</span>`).join('');
+    const isOpen=offenesProjekt===p.id;
+    let rhtml='';
+    if(isOpen){
+      rhtml=pr.length===0?'<div class="empty-p">Noch keine Rapporte</div>':pr.map(x=>{
         const mn=x.musa_mitarbeiter?.name||'—';
         const d=new Date(x.created_at);
         const ds=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
         const th=x.fotos&&x.fotos.length>0?`<img src="${x.fotos[0]}" class="rt">`:`<div class="rnt">📋</div>`;
         return `<div class="ri">${th}<div class="rb"><div class="rtp"><div class="rnm">${mn}</div><div class="rts">${ds}</div></div><div class="rdesc">${x.beschreibung}</div><div class="rmeta">⏱ ${x.stunden}h · ${x.leistung}</div></div></div>`;
       }).join('');
-      const card=document.createElement('div');card.className='pk';
-      card.innerHTML=`<div class="ph" onclick="togP(this)"><div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div><div class="ptags">${tags}</div></div><span class="sp ${sc}">${sl}</span><span class="parr">▾</span></div><div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="event.stopPropagation();zuR('${p.id}')">📄 Rechnung</button></div><div class="rp">${rhtml}</div>`;
-      el.appendChild(card);
-    });
-  }catch(e){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${e.message}</div>`;}
+    }
+    return `<div class="pk${isOpen?' op':''}">
+      <div class="ph" onclick="togP('${p.id}')">
+        <div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div><div class="ptags">${tags}</div></div>
+        <span class="sp ${sc}">${sl}</span>
+        <span class="parr">${isOpen?'▴':'▾'}</span>
+      </div>
+      <div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="event.stopPropagation();zuR('${p.id}')">📄 Rechnung</button></div>
+      ${isOpen?`<div class="rp" style="display:block;">${rhtml}</div>`:''}
+    </div>`;
+  }).join('');
 }
 
-function togP(h){const c=h.closest('.pk');c.classList.toggle('op');}
+function togP(pid){
+  offenesProjekt = (offenesProjekt===pid) ? null : pid;
+  renderPlist();
+  if(offenesProjekt){
+    setTimeout(()=>{
+      const el=document.querySelector('.pk.op');
+      if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },50);
+  }
+}
 function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
 
 // ── AUSWERTUNG ──
