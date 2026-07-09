@@ -319,7 +319,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 /* SHARED */
 .sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--g);margin-bottom:8px;display:block;}
 .load{text-align:center;padding:40px;color:var(--g);}
-.sp{display:inline-block;width:22px;height:22px;border:3px solid var(--r);
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--r);
   border-top-color:var(--a);border-radius:50%;animation:sp .7s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg);}}
 .empty{text-align:center;padding:40px 20px;color:var(--g);}
@@ -526,7 +526,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
           <div class="fc" onclick="setFil('Haustechnik',this)">Haustechnik</div>
           <div class="fc" onclick="setFil('Industrie & Gewerbe',this)">Industrie</div>
         </div>
-        <div id="plist"><div class="load"><div class="sp"></div></div></div>
+        <div id="plist"><div class="load"><div class="spinner"></div></div></div>
       </div>
     </div>
 
@@ -550,7 +550,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
             <option value="projektleiter">Projektleiter</option>
           </select>
         </div>
-        <div id="al"><div class="load"><div class="sp"></div></div></div>
+        <div id="al"><div class="load"><div class="spinner"></div></div></div>
       </div>
     </div>
 
@@ -572,7 +572,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
           <div class="ff"><label class="fl">Notiz</label><textarea id="rnnotiz" class="ft" style="min-height:60px;" placeholder="Leistungszeitraum…"></textarea></div>
           <button class="btn-send" onclick="rechnungSpeichern()" style="margin-top:10px;">Rechnung anlegen →</button>
         </div>
-        <div id="rl"><div class="load"><div class="sp"></div></div></div>
+        <div id="rl"><div class="load"><div class="spinner"></div></div></div>
       </div>
     </div>
 
@@ -904,7 +904,7 @@ function setFil(v,el){filter=v;document.querySelectorAll('.fc').forEach(c=>c.cla
 let dashData=[],offenesProjekt=null;
 
 async function renderDash(){
-  const el=document.getElementById('plist');el.innerHTML='<div class="load"><div class="sp"></div></div>';
+  const el=document.getElementById('plist');el.innerHTML='<div class="load"><div class="spinner"></div></div>';
   try{
     const heute=new Date().toISOString().split('T')[0];
     const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name),musa_projekte(name)').order('created_at',{ascending:false});
@@ -969,7 +969,7 @@ function setPer(p,el){period=p;document.querySelectorAll('.ptb').forEach(b=>b.cl
 
 async function renderAusw(){
   const al=document.getElementById('al'),ag=document.getElementById('ag');
-  al.innerHTML='<div class="load"><div class="sp"></div></div>';
+  al.innerHTML='<div class="load"><div class="spinner"></div></div>';
   const h=new Date();let von;
   if(period==='woche'){const mo=new Date(h);mo.setDate(h.getDate()-h.getDay()+1);von=mo.toISOString().split('T')[0];}
   else if(period==='monat'){von=new Date(h.getFullYear(),h.getMonth(),1).toISOString().split('T')[0];}
@@ -1005,7 +1005,7 @@ async function rechnungSpeichern(){
 }
 
 async function renderRech(){
-  const el=document.getElementById('rl');el.innerHTML='<div class="load"><div class="sp"></div></div>';
+  const el=document.getElementById('rl');el.innerHTML='<div class="load"><div class="spinner"></div></div>';
   const {data:rr}=await db.from('musa_rechnungen').select('*,musa_projekte(name)').order('created_at',{ascending:false});
   if(!rr||!rr.length){el.innerHTML='<div class="empty"><div class="ei">📄</div>Noch keine Rechnungen.</div>';return;}
   const sm={entwurf:['rp-e','Entwurf'],gesendet:['rp-s','Gesendet'],bezahlt:['rp-b','Bezahlt']};
