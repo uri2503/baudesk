@@ -321,6 +321,12 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .ktb.on{background:var(--a);color:var(--k);font-weight:800;}
 .kview .anb:first-child{border-top:none;}
 
+/* Zurück-Pfeil über Detailkarte (Fokus-Modus Dashboard/Auswertung) */
+.back-btn{width:36px;height:36px;border-radius:10px;
+  background:var(--k2);border:1px solid var(--r);color:var(--w);
+  font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  margin-bottom:12px;font-family:'Inter',sans-serif;}
+
 /* ── RECHNUNGEN ── */
 .rech{padding:16px;}
 .btn-nr{width:100%;padding:14px;border:2px dashed var(--r);border-radius:12px;
@@ -1036,6 +1042,19 @@ function destroyPrCharts(){
   if(chartPrLeistung){chartPrLeistung.destroy();chartPrLeistung=null;}
 }
 
+// Fokus-Modus: sobald ein Projekt gewählt ist, treten Übersichts-Kacheln/Filter zurück
+function updateDashFokus(){
+  const uebersicht=!ausgewaehltesProjekt;
+  document.querySelector('.kpi-strip').style.display=uebersicht?'flex':'none';
+  document.querySelector('.fil-r').style.display=uebersicht?'flex':'none';
+}
+
+function zurueckZuProjekten(){
+  ausgewaehltesProjekt=null;
+  document.getElementById('dproj').value='';
+  renderProjektKarte();
+}
+
 async function renderDash(){
   const el=document.getElementById('plist');
   try{
@@ -1079,6 +1098,7 @@ function waehleProjekt(pid){
 function renderProjektKarte(){
   const el=document.getElementById('plist');
   destroyPrCharts();
+  updateDashFokus();
   if(!ausgewaehltesProjekt){el.innerHTML='';return;}
   const p=projekte.find(x=>x.id===ausgewaehltesProjekt);
   if(!p){el.innerHTML='';return;}
@@ -1113,7 +1133,8 @@ function renderProjektKarte(){
   // Leistungsbereiche im Projekt
   const leist=leistungAggregat(pr);
 
-  el.innerHTML=`<div class="pk op">
+  el.innerHTML=`<button class="back-btn" onclick="zurueckZuProjekten()">‹</button>
+  <div class="pk op">
     <div class="ph">
       <div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div><div class="ptags">${tags}</div></div>
       <span class="sp ${sc}">${sl}</span>
@@ -1205,10 +1226,15 @@ async function renderAusw(){
   window._auswRapporte = r;
   window._maArr = arr;
   window._auswVon = von;
-  ausgewaehlteMA = null;
   destroyMaCharts();
-  populateMaSelect(false);
-  al.innerHTML = arr.length ? '' : '<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';
+  // Bestehende Auswahl bleibt bei Zeitraumwechsel erhalten, sofern im neuen Zeitraum noch vorhanden (siehe populateMaSelect)
+  populateMaSelect(true);
+  if(ausgewaehlteMA){
+    renderMaKarte();
+  }else{
+    updateAuswFokus();
+    al.innerHTML = arr.length ? '' : '<div class="empty"><div class="ei">📊</div>Keine Daten.</div>';
+  }
 }
 
 function gefiltertMA(){
@@ -1239,6 +1265,17 @@ function onRolleChange(){
 
 function onMaSelect(){
   ausgewaehlteMA=document.getElementById('ma-select').value||null;
+  renderMaKarte();
+}
+
+// Fokus-Modus: sobald ein Mitarbeiter gewählt ist, tritt die Gesamt-Kachel zurück (Zeitraum-Umschalter bleibt aktiv)
+function updateAuswFokus(){
+  document.getElementById('ag').style.display=ausgewaehlteMA?'none':'block';
+}
+
+function zurueckZuMitarbeitern(){
+  ausgewaehlteMA=null;
+  document.getElementById('ma-select').value='';
   renderMaKarte();
 }
 
@@ -1275,6 +1312,7 @@ async function renderMaKarte(){
   const al=document.getElementById('al');
   const arr=window._maArr||[];
   destroyMaCharts();
+  updateAuswFokus();
   if(!ausgewaehlteMA){al.innerHTML='';return;}
   const m=arr.find(x=>x.maId===ausgewaehlteMA);
   if(!m){al.innerHTML='';return;}
@@ -1318,7 +1356,8 @@ async function renderMaKarte(){
   const rapportKeys=new Set(m.rapporte.map(r=>r.datum+'_'+r.projekt_id));
   const offeneCount=(stempel||[]).filter(s=>!rapportKeys.has(s.gestempelt_ein.split('T')[0]+'_'+s.projekt_id)).length;
 
-  al.innerHTML=`<div class="mak">
+  al.innerHTML=`<button class="back-btn" onclick="zurueckZuMitarbeitern()">‹</button>
+  <div class="mak">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
       <div>
         <div class="man">${m.n}</div>
