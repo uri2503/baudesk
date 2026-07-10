@@ -313,6 +313,14 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .anb-badge.ok{background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.3);}
 .anb-badge.warn{background:rgba(239,68,68,.12);color:var(--rt);border:1px solid rgba(239,68,68,.3);}
 
+/* Liste/Auswertung-Toggle in Detailkarten (visuell an .pt/.ptb angeglichen) */
+.kt{display:flex;background:var(--k3);border:1px solid var(--r);
+  border-radius:12px;padding:4px;gap:4px;}
+.ktb{flex:1;padding:9px;border:none;background:none;color:var(--g);
+  font-size:13px;font-weight:600;cursor:pointer;border-radius:9px;font-family:'Inter',sans-serif;}
+.ktb.on{background:var(--a);color:var(--k);font-weight:800;}
+.kview .anb:first-child{border-top:none;}
+
 /* ── RECHNUNGEN ── */
 .rech{padding:16px;}
 .btn-nr{width:100%;padding:14px;border:2px dashed var(--r);border-radius:12px;
@@ -1111,8 +1119,16 @@ function renderProjektKarte(){
       <span class="sp ${sc}">${sl}</span>
     </div>
     <div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="zuR('${p.id}')">📄 Rechnung</button></div>
-    <div class="rp" style="display:block;">${rhtml}</div>
-    <div style="padding:14px;">
+    <div style="padding:14px 14px 0;">
+      <div class="kt">
+        <button class="ktb ${prKarteView==='liste'?'on':''}" onclick="setKartenView('pr','liste',this)">📋 Liste</button>
+        <button class="ktb ${prKarteView==='ausw'?'on':''}" onclick="setKartenView('pr','ausw',this)">📊 Auswertung</button>
+      </div>
+    </div>
+    <div class="kview" data-view="liste" style="display:${prKarteView==='liste'?'block':'none'};">
+      <div class="rp" style="display:block;">${rhtml}</div>
+    </div>
+    <div class="kview" data-view="ausw" style="display:${prKarteView==='ausw'?'block':'none'};padding:14px;">
       <div class="anb">
         <div class="anb-t">Stunden nach Mitarbeiter</div>
         ${balkenListe(maListe)}
@@ -1137,6 +1153,29 @@ function renderProjektKarte(){
 }
 
 function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
+
+// ── LISTE/AUSWERTUNG-TOGGLE (Mitarbeiter- & Projekt-Detailkarte) ──
+// Ansicht wird pro Kartentyp gemerkt, nicht zurückgesetzt bei Auswahlwechsel — nur beim Neuladen der Seite Standard 'liste'.
+let maKarteView='liste',prKarteView='liste';
+
+function setKartenView(karte,view,el){
+  if(karte==='ma')maKarteView=view;else prKarteView=view;
+  const root=el.closest('.mak,.pk');
+  if(!root)return;
+  root.querySelectorAll('.ktb').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  root.querySelectorAll('.kview').forEach(v=>{v.style.display=v.dataset.view===view?'block':'none';});
+  if(view==='ausw'){
+    // Charts, die bei versteckter Ansicht erzeugt wurden, haben Größe 0 — nach Sichtbarwerden neu vermessen
+    if(karte==='ma'){
+      if(chartMaLeistung)chartMaLeistung.resize();
+      if(chartMaWochen)chartMaWochen.resize();
+    }else{
+      if(chartPrVerlauf)chartPrVerlauf.resize();
+      if(chartPrLeistung)chartPrLeistung.resize();
+    }
+  }
+}
 
 // ── AUSWERTUNG ──
 let ausgewaehlteMA=null;
@@ -1298,31 +1337,41 @@ async function renderMaKarte(){
         <div><div class="masv">${m.tg.size>0?(m.h/m.tg.size).toFixed(1):0}</div><div class="masl">Ø Std/Tag</div></div>
       </div>
 
-      <div class="anb">
-        <div class="anb-t">Offene Rapporte</div>
-        <div class="anb-kpi">
-          <div class="anb-kpi-t">${offeneCount} offene Rapporte im gewählten Zeitraum</div>
-          <div class="anb-badge ${offeneCount>0?'warn':'ok'}">${offeneCount>0?'⚠️ '+offeneCount:'✅ 0'}</div>
+      <div class="kt">
+        <button class="ktb ${maKarteView==='liste'?'on':''}" onclick="setKartenView('ma','liste',this)">📋 Liste</button>
+        <button class="ktb ${maKarteView==='ausw'?'on':''}" onclick="setKartenView('ma','ausw',this)">📊 Auswertung</button>
+      </div>
+
+      <div class="kview" data-view="liste" style="display:${maKarteView==='liste'?'block':'none'};margin-top:12px;">
+        ${rhtml}
+      </div>
+
+      <div class="kview" data-view="ausw" style="display:${maKarteView==='ausw'?'block':'none'};">
+        <div class="anb">
+          <div class="anb-t">Offene Rapporte</div>
+          <div class="anb-kpi">
+            <div class="anb-kpi-t">${offeneCount} offene Rapporte im gewählten Zeitraum</div>
+            <div class="anb-badge ${offeneCount>0?'warn':'ok'}">${offeneCount>0?'⚠️ '+offeneCount:'✅ 0'}</div>
+          </div>
+        </div>
+
+        <div class="anb">
+          <div class="anb-t">Verteilung nach Leistungsbereich</div>
+          ${leist.labels.length?'<div class="anb-chart"><canvas id="chMaLeistung"></canvas></div>':'<div class="anb-empty">Keine Daten.</div>'}
+        </div>
+
+        <div class="anb">
+          <div class="anb-t">Verteilung nach Projekt</div>
+          ${balkenListe(projListe)}
+        </div>
+
+        <div class="anb">
+          <div class="anb-t">Wochentrend (letzte 8 Wochen)</div>
+          <div class="anb-chart"><canvas id="chMaWochen"></canvas></div>
         </div>
       </div>
 
-      <div class="anb">
-        <div class="anb-t">Verteilung nach Leistungsbereich</div>
-        ${leist.labels.length?'<div class="anb-chart"><canvas id="chMaLeistung"></canvas></div>':'<div class="anb-empty">Keine Daten.</div>'}
-      </div>
-
-      <div class="anb">
-        <div class="anb-t">Verteilung nach Projekt</div>
-        ${balkenListe(projListe)}
-      </div>
-
-      <div class="anb">
-        <div class="anb-t">Wochentrend (letzte 8 Wochen)</div>
-        <div class="anb-chart"><canvas id="chMaWochen"></canvas></div>
-      </div>
-
-      <div style="border-top:1px solid var(--r);padding-top:10px;margin-top:14px;">${rhtml}</div>
-      <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:10px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
+      <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:14px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
     </div>
   </div>`;
 
