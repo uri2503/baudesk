@@ -99,6 +99,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .tb.active{color:var(--a);}
 .tb-icon{font-size:20px;line-height:1;}
 .tb.pl-tab{display:none;}
+.tb.sd-tab{display:none;}
 
 /* ── TABS ── */
 .tab{display:none;}
@@ -194,10 +195,10 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .rapport{padding:16px 16px 40px;}
 .fg{margin-bottom:18px;}
 .chip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.chip{padding:11px 8px;background:var(--k2);border:1px solid var(--r);
+.chip,.chipm{padding:11px 8px;background:var(--k2);border:1px solid var(--r);
   border-radius:10px;font-size:12px;font-weight:600;color:var(--g);
   cursor:pointer;text-align:center;user-select:none;}
-.chip.on{background:var(--a);border-color:var(--a);color:var(--k);font-weight:800;}
+.chip.on,.chipm.on{background:var(--a);border-color:var(--a);color:var(--k);font-weight:800;}
 .zr{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .sh{font-size:11px;color:var(--gr);font-weight:600;margin-top:5px;display:none;}
 .foto-z{border:2px dashed var(--r);border-radius:12px;background:var(--k2);
@@ -643,6 +644,26 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
       </div>
     </div>
 
+    <!-- STAMMDATEN TAB -->
+    <div class="tab" id="tab-stammdaten">
+      <div class="ausw">
+        <div class="pt">
+          <button class="ptb on" onclick="setStammBereich('mitarbeiter',this)">Mitarbeiter</button>
+          <button class="ptb" onclick="setStammBereich('projekte',this)">Projekte</button>
+        </div>
+        <div id="sdBereichMitarbeiter">
+          <button class="btn-nr" onclick="sdNeuerMitarbeiter()">＋ Neuer Mitarbeiter</button>
+          <div id="sdMaForm"></div>
+          <div id="sdMaListe"><div class="load"><div class="spinner"></div></div></div>
+        </div>
+        <div id="sdBereichProjekte" style="display:none;">
+          <button class="btn-nr" onclick="sdNeuesProjekt()">＋ Neues Projekt</button>
+          <div id="sdProjForm"></div>
+          <div id="sdProjListe"><div class="load"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 
   <!-- Tab Bar -->
@@ -665,6 +686,9 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
     <button class="tb pl-tab" id="tb-rechnungen" onclick="showTab('rechnungen')" style="display:none;">
       <span class="tb-icon">📄</span>Rechnung
     </button>
+    <button class="tb sd-tab" id="tb-stammdaten" onclick="showTab('stammdaten')" style="display:none;">
+      <span class="tb-icon">⚙️</span>Stammdaten
+    </button>
   </div>
 </div>
 
@@ -686,6 +710,10 @@ const db=supabase.createClient(SB,SK);
 
 let MA=null,projekte=[],selL=null,fotoData=[],filter='alle',period='woche',aktStempel=null,bearbeiteterRapportId=null;
 let uhrI=null,stI=null;
+
+// Geteilte Wertelisten (Rolle/Projekt-Status) — von Detailkarten, PDFs und Stammdaten genutzt
+const ROLLEN_LABEL={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'};
+const PROJEKT_STATUS={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
 
 // ── CHART-HELPER (Auswertung/Dashboard) ──
 // Feste Reihenfolge & Farben je Leistungsbereich (Identität bleibt über beide Charts stabil)
@@ -805,6 +833,10 @@ async function startApp(ma){
   if(ma.rolle!=='monteur'){
     document.querySelectorAll('.pl-tab,.pl-btn').forEach(e=>e.style.display='flex');
   }
+  // Stammdaten: strenger nur für projektleiter, nicht für bauleiter
+  if(ma.rolle==='projektleiter'){
+    document.querySelectorAll('.sd-tab').forEach(e=>e.style.display='flex');
+  }
   startUhr();
   await init();
 }
@@ -819,10 +851,19 @@ async function doLogout(){
   showTab('home');
 }
 
+async function ladeMitarbeiterFuerLogin(){
+  const {data:m}=await db.from('bd_mitarbeiter').select('id,name,rolle').order('name');
+  const s=document.getElementById('lname');
+  if(!s)return;
+  const cur=s.value;
+  s.innerHTML='<option value="">— auswählen —</option>';
+  (m||[]).forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;s.appendChild(o);});
+  if(cur&&(m||[]).some(x=>x.id===cur))s.value=cur;
+}
+
 // Auto-Session
 (async()=>{
-  const {data:m}=await db.from('bd_mitarbeiter').select('id,name,rolle').order('name');
-  if(m){const s=document.getElementById('lname');m.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;s.appendChild(o);});}
+  await ladeMitarbeiterFuerLogin();
   const ss=localStorage.getItem('bd_s');
   if(ss){
     try{
@@ -848,6 +889,7 @@ function showTab(name){
   if(name==='dashboard')renderDash();
   if(name==='auswertung')renderAusw();
   if(name==='rechnungen')renderRech();
+  if(name==='stammdaten')renderStammdaten();
   if(name==='stempel')setTimeout(ladeHist,50);
 }
 
@@ -863,16 +905,24 @@ function startUhr(){
 }
 
 // ── INIT ──
-async function init(){
-  document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
-  document.getElementById('rndat').value=new Date().toISOString().split('T')[0];
-  const [{data:p}]=await Promise.all([db.from('bd_projekte').select('*').order('name')]);
+async function ladeProjekte(){
+  const {data:p}=await db.from('bd_projekte').select('*').order('name');
   projekte=p||[];
   ['sproj','rproj','rnproj'].forEach(id=>{
     const s=document.getElementById(id);if(!s)return;
+    const cur=s.value;
     s.innerHTML='<option value="">— Projekt auswählen —</option>';
     projekte.forEach(pr=>{const o=document.createElement('option');o.value=pr.id;o.textContent=pr.name;s.appendChild(o);});
+    if(cur&&projekte.some(pr=>pr.id===cur))s.value=cur;
   });
+  populateProjSelect(true);
+  if(ausgewaehltesProjekt)renderProjektKarte();
+}
+
+async function init(){
+  document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
+  document.getElementById('rndat').value=new Date().toISOString().split('T')[0];
+  await ladeProjekte();
   await ladeAktStempel();
   await ladeHist();
 }
@@ -1152,8 +1202,7 @@ function renderProjektKarte(){
   const r=dashData;
   const pr=r.filter(x=>x.projekt_id===p.id);
   const sh=pr.reduce((s,x)=>s+(x.stunden||0),0);
-  const sm={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
-  const [sc,sl]=sm[p.status]||['so',p.status];
+  const [sc,sl]=PROJEKT_STATUS[p.status]||['so',p.status];
   const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${l}</span>`).join('');
   const rhtml=pr.length===0?'<div class="empty-p">Noch keine Rapporte</div>':pr.map(x=>{
     const mn=x.bd_mitarbeiter?.name||'—';
@@ -1421,7 +1470,7 @@ async function renderMaKarte(){
   const meineAnfrage=ausgewaehlteMA;
   const mx=arr.length>0?arr[0].h:1;
   const pct=Math.round((m.h/mx)*100);
-  const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
+  const rl=ROLLEN_LABEL[m.ro]||m.ro;
   const rr=m.rapporte.slice().sort((a,b)=>b.datum.localeCompare(a.datum));
   const rhtml=rr.length?rr.map(r=>`
       <div style="padding:12px 0;border-bottom:1px solid var(--r);cursor:pointer;" onclick="zeigeRapportModal('${r.id}','ausw')">
@@ -1625,6 +1674,275 @@ function pdf(r,pn){
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
   doc.text('Zahlungsziel: 14 Tage netto',14,265);
   doc.save(r.rechnungsnummer+'.pdf');
+}
+
+// ── STAMMDATEN (nur projektleiter) ──
+let sdBereich='mitarbeiter';
+let mitarbeiterListe=[];
+let sdBearbeiteterMaId=null;
+let sdBearbeiteterProjektId=null;
+let sdMaAktivWert=true;
+let sdProjLeistungenWert=[];
+
+function setStammBereich(b,el){
+  sdBereich=b;
+  document.querySelectorAll('#tab-stammdaten .ptb').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('sdBereichMitarbeiter').style.display=b==='mitarbeiter'?'block':'none';
+  document.getElementById('sdBereichProjekte').style.display=b==='projekte'?'block':'none';
+}
+
+async function renderStammdaten(){
+  sdSchliesseMaFormular();
+  sdSchliesseProjFormular();
+  await Promise.all([sdLadeMitarbeiter(),ladeProjekte()]);
+  sdRenderProjListe();
+}
+
+// ── Mitarbeiter ──
+async function sdLadeMitarbeiter(){
+  const el=document.getElementById('sdMaListe');
+  const {data,error}=await db.from('bd_mitarbeiter').select('*').order('name');
+  if(error){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${error.message}</div>`;return;}
+  mitarbeiterListe=data||[];
+  sdRenderMaListe();
+}
+
+function sdRenderMaListe(){
+  const el=document.getElementById('sdMaListe');
+  if(!mitarbeiterListe.length){el.innerHTML='<div class="empty"><div class="ei">👤</div>Noch keine Mitarbeiter.</div>';return;}
+  el.innerHTML=mitarbeiterListe.map(m=>`
+    <div class="rc" style="cursor:pointer;" onclick="sdBearbeiteMitarbeiter('${m.id}')">
+      <div class="rct">
+        <div><div class="rcnr">${m.name}</div><div class="rcpr">${ROLLEN_LABEL[m.rolle]||m.rolle}</div></div>
+        <span class="rpi ${m.aktiv===false?'rp-e':'rp-b'}">${m.aktiv===false?'Inaktiv':'Aktiv'}</span>
+      </div>
+    </div>`).join('');
+}
+
+function sdNeuerMitarbeiter(){
+  sdBearbeiteterMaId=null;
+  sdZeigeMaFormular(null);
+}
+
+function sdBearbeiteMitarbeiter(id){
+  const m=mitarbeiterListe.find(x=>x.id===id);
+  if(!m)return;
+  sdBearbeiteterMaId=id;
+  sdZeigeMaFormular(m);
+}
+
+function sdSchliesseMaFormular(){
+  sdBearbeiteterMaId=null;
+  const el=document.getElementById('sdMaForm');
+  if(el)el.innerHTML='';
+}
+
+function sdZeigeMaFormular(m){
+  const istNeu=!m;
+  sdMaAktivWert=m?(m.aktiv!==false):true;
+  const kannLoeschen=!istNeu&&MA.rolle==='projektleiter';
+  document.getElementById('sdMaForm').innerHTML=`
+    <div class="nf on">
+      <div class="nft">${istNeu?'Neuer Mitarbeiter':'Mitarbeiter bearbeiten'}</div>
+      <div class="ff"><label class="fl">Name</label><input type="text" id="sdMaName" class="fi" value="${m?.name||''}"></div>
+      <div class="fr">
+        <div><label class="fl">PIN</label><input type="text" id="sdMaPin" class="fi" maxlength="4" inputmode="numeric" value="${m?.pin||''}"></div>
+        <div><label class="fl">Rolle</label>
+          <select id="sdMaRolle" class="fs">
+            <option value="monteur">Monteur</option>
+            <option value="bauleiter">Bauleiter</option>
+            <option value="projektleiter">Projektleiter</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="ff"><label class="fl">E-Mail</label><input type="email" id="sdMaEmail" class="fi" value="${m?.email||''}"></div>
+      <div class="ff"><label class="fl">Stundensatz €</label><input type="number" id="sdMaSatz" class="fi" step="0.5" value="${m?.stundensatz??''}"></div>
+      <div class="ff">
+        <label class="fl">Status</label>
+        <div class="kt">
+          <button type="button" class="ktb ${sdMaAktivWert?'on':''}" onclick="sdSetMaAktiv(true,this)">Aktiv</button>
+          <button type="button" class="ktb ${!sdMaAktivWert?'on':''}" onclick="sdSetMaAktiv(false,this)">Inaktiv</button>
+        </div>
+      </div>
+      <div class="ff"><label class="fl">Login verknüpft</label><div style="font-size:13px;color:var(--tx);padding:10px 0;">${m?.auth_user_id?'✅ Ja':'— Nein'}</div></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-send" id="sdMaSaveBtn" style="flex:1;margin-top:0;" onclick="sdMitarbeiterSpeichern()">${istNeu?'Anlegen →':'Speichern →'}</button>
+        ${kannLoeschen?`<button class="btn-ra" style="background:var(--rt);color:#fff;border-color:var(--rt);" onclick="sdMitarbeiterLoeschen('${m.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  document.getElementById('sdMaRolle').value=m?.rolle||'monteur';
+}
+
+function sdSetMaAktiv(val,el){
+  sdMaAktivWert=val;
+  el.parentElement.querySelectorAll('.ktb').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+
+async function sdMitarbeiterSpeichern(){
+  const name=document.getElementById('sdMaName').value.trim();
+  const pin=document.getElementById('sdMaPin').value.trim();
+  const rolle=document.getElementById('sdMaRolle').value;
+  const email=document.getElementById('sdMaEmail').value.trim();
+  const satzRaw=document.getElementById('sdMaSatz').value;
+  if(!name||!pin||!rolle){showErr('Bitte Name, PIN und Rolle ausfüllen.');return;}
+  const btn=document.getElementById('sdMaSaveBtn');btn.disabled=true;
+  const payload={name,pin,rolle,email:email||null,stundensatz:satzRaw===''?null:parseFloat(satzRaw),aktiv:sdMaAktivWert};
+  const {error}=sdBearbeiteterMaId
+    ?await db.from('bd_mitarbeiter').update(payload).eq('id',sdBearbeiteterMaId)
+    :await db.from('bd_mitarbeiter').insert(payload);
+  if(error){showErr('Fehler: '+error.message);btn.disabled=false;return;}
+  showOk(sdBearbeiteterMaId?'✅ Mitarbeiter aktualisiert!':'✅ Mitarbeiter angelegt!');
+  sdSchliesseMaFormular();
+  await sdLadeMitarbeiter();
+  await ladeMitarbeiterFuerLogin();
+}
+
+async function sdMitarbeiterLoeschen(id){
+  if(MA.rolle!=='projektleiter'){showErr('Keine Berechtigung.');return;}
+  if(!confirm('Diesen Mitarbeiter wirklich unwiderruflich löschen?'))return;
+  const [{count:rapCount},{count:stCount}]=await Promise.all([
+    db.from('bd_rapporte').select('id',{count:'exact',head:true}).eq('mitarbeiter_id',id),
+    db.from('bd_stempeluhr').select('id',{count:'exact',head:true}).eq('mitarbeiter_id',id)
+  ]);
+  if((rapCount||0)>0||(stCount||0)>0){
+    showErr(`Mitarbeiter hat ${rapCount||0} Rapporte und ${stCount||0} Stempel-Einträge — bitte stattdessen deaktivieren.`);
+    return;
+  }
+  const {error}=await db.from('bd_mitarbeiter').delete().eq('id',id);
+  if(error){showErr('Fehler: '+error.message);return;}
+  showOk('Mitarbeiter gelöscht.');
+  sdSchliesseMaFormular();
+  await sdLadeMitarbeiter();
+  await ladeMitarbeiterFuerLogin();
+}
+
+// ── Projekte ──
+function sdRenderProjListe(){
+  const el=document.getElementById('sdProjListe');
+  if(!projekte.length){el.innerHTML='<div class="empty"><div class="ei">🏗️</div>Noch keine Projekte.</div>';return;}
+  el.innerHTML=projekte.map(p=>{
+    const [sc,sl]=PROJEKT_STATUS[p.status]||['pill-g',p.status];
+    return `<div class="rc" style="cursor:pointer;" onclick="sdBearbeiteProjekt('${p.id}')">
+      <div class="rct">
+        <div><div class="rcnr">${p.name}</div><div class="rcpr">${p.kunde||'—'}</div></div>
+        <span class="sp ${sc}">${sl}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function sdNeuesProjekt(){
+  sdBearbeiteterProjektId=null;
+  sdZeigeProjFormular(null);
+}
+
+function sdBearbeiteProjekt(id){
+  const p=projekte.find(x=>x.id===id);
+  if(!p)return;
+  sdBearbeiteterProjektId=id;
+  sdZeigeProjFormular(p);
+}
+
+function sdSchliesseProjFormular(){
+  sdBearbeiteterProjektId=null;
+  const el=document.getElementById('sdProjForm');
+  if(el)el.innerHTML='';
+}
+
+function sdZeigeProjFormular(p){
+  const istNeu=!p;
+  sdProjLeistungenWert=(p?.leistungen||[]).slice();
+  const kannLoeschen=!istNeu&&MA.rolle==='projektleiter';
+  document.getElementById('sdProjForm').innerHTML=`
+    <div class="nf on">
+      <div class="nft">${istNeu?'Neues Projekt':'Projekt bearbeiten'}</div>
+      <div class="ff"><label class="fl">Name</label><input type="text" id="sdProjName" class="fi" value="${p?.name||''}"></div>
+      <div class="ff"><label class="fl">Kunde</label><input type="text" id="sdProjKunde" class="fi" value="${p?.kunde||''}"></div>
+      <div class="ff"><label class="fl">Adresse</label><input type="text" id="sdProjAdresse" class="fi" value="${p?.adresse||''}"></div>
+      <div class="ff"><label class="fl">Status</label>
+        <select id="sdProjStatus" class="fs">
+          <option value="offen">Offen</option>
+          <option value="aktiv">In Arbeit</option>
+          <option value="abnahme">Abnahme</option>
+          <option value="abgerechnet">Abgerechnet</option>
+          <option value="abgeschlossen">Abgeschlossen</option>
+        </select>
+      </div>
+      <div class="ff"><label class="fl">Leistungsbereiche</label>
+        <div class="chip-grid">
+          ${LEISTUNG_ORDER.map(l=>`<div class="chipm ${sdProjLeistungenWert.includes(l)?'on':''}" onclick="sdToggleProjLeistung(this,'${l}')">${leistungEmoji(l)} ${l}</div>`).join('')}
+        </div>
+      </div>
+      <div class="fr">
+        <div><label class="fl">Auftragswert €</label><input type="number" id="sdProjAuftragswert" class="fi" step="100" value="${p?.auftragswert??''}"></div>
+        <div><label class="fl">Budget Stunden</label><input type="number" id="sdProjBudget" class="fi" step="1" value="${p?.budget_stunden??''}"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-send" id="sdProjSaveBtn" style="flex:1;margin-top:0;" onclick="sdProjektSpeichern()">${istNeu?'Anlegen →':'Speichern →'}</button>
+        ${kannLoeschen?`<button class="btn-ra" style="background:var(--rt);color:#fff;border-color:var(--rt);" onclick="sdProjektLoeschen('${p.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  document.getElementById('sdProjStatus').value=p?.status||'offen';
+}
+
+function leistungEmoji(l){
+  const map={'Elektroinstallation':'⚡','Erneuerbare Energien':'☀️','Sicherheit':'🔒','Haustechnik':'🏠','Industrie & Gewerbe':'🏭','Licht & Leuchten':'💡','Elektromobilität':'🚗','Multimedia':'📡'};
+  return map[l]||'•';
+}
+
+function sdToggleProjLeistung(el,val){
+  el.classList.toggle('on');
+  if(sdProjLeistungenWert.includes(val))sdProjLeistungenWert=sdProjLeistungenWert.filter(x=>x!==val);
+  else sdProjLeistungenWert.push(val);
+}
+
+async function sdProjektSpeichern(){
+  const name=document.getElementById('sdProjName').value.trim();
+  const kunde=document.getElementById('sdProjKunde').value.trim();
+  const adresse=document.getElementById('sdProjAdresse').value.trim();
+  const status=document.getElementById('sdProjStatus').value;
+  const auftragswertRaw=document.getElementById('sdProjAuftragswert').value;
+  const budgetRaw=document.getElementById('sdProjBudget').value;
+  if(!name){showErr('Bitte mindestens einen Namen angeben.');return;}
+  const btn=document.getElementById('sdProjSaveBtn');btn.disabled=true;
+  const payload={
+    name,kunde:kunde||null,adresse:adresse||null,status,
+    leistungen:sdProjLeistungenWert,
+    auftragswert:auftragswertRaw===''?null:parseFloat(auftragswertRaw),
+    budget_stunden:budgetRaw===''?null:parseFloat(budgetRaw)
+  };
+  const {error}=sdBearbeiteterProjektId
+    ?await db.from('bd_projekte').update(payload).eq('id',sdBearbeiteterProjektId)
+    :await db.from('bd_projekte').insert(payload);
+  if(error){showErr('Fehler: '+error.message);btn.disabled=false;return;}
+  showOk(sdBearbeiteterProjektId?'✅ Projekt aktualisiert!':'✅ Projekt angelegt!');
+  sdSchliesseProjFormular();
+  await ladeProjekte();
+  sdRenderProjListe();
+}
+
+async function sdProjektLoeschen(id){
+  if(MA.rolle!=='projektleiter'){showErr('Keine Berechtigung.');return;}
+  if(!confirm('Dieses Projekt wirklich unwiderruflich löschen?'))return;
+  const [{count:rapCount},{count:stCount},{count:rechCount}]=await Promise.all([
+    db.from('bd_rapporte').select('id',{count:'exact',head:true}).eq('projekt_id',id),
+    db.from('bd_stempeluhr').select('id',{count:'exact',head:true}).eq('projekt_id',id),
+    db.from('bd_rechnungen').select('id',{count:'exact',head:true}).eq('projekt_id',id)
+  ]);
+  if((rapCount||0)>0||(stCount||0)>0||(rechCount||0)>0){
+    showErr(`Projekt hat ${rapCount||0} Rapporte, ${stCount||0} Stempel-Einträge und ${rechCount||0} Rechnungen — Löschen nicht möglich.`);
+    return;
+  }
+  const {error}=await db.from('bd_projekte').delete().eq('id',id);
+  if(error){showErr('Fehler: '+error.message);return;}
+  showOk('Projekt gelöscht.');
+  sdSchliesseProjFormular();
+  if(ausgewaehltesProjekt===id){ausgewaehltesProjekt=null;}
+  await ladeProjekte();
+  sdRenderProjListe();
 }
 
 // Stunden in lesbares Format umwandeln: 1.5 → "1h 30min"
