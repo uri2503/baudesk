@@ -784,9 +784,9 @@ async function doLogin(){
   err.style.display='none';
   if(!id||!pin){err.textContent='Bitte Mitarbeiter und PIN eingeben.';err.style.display='block';return;}
   btn.disabled=true;btn.textContent='⏳';
-  const {data,error}=await db.from('musa_mitarbeiter').select('*').eq('id',id).eq('pin',pin).single();
+  const {data,error}=await db.from('bd_mitarbeiter').select('*').eq('id',id).eq('pin',pin).single();
   if(error||!data){err.textContent='PIN falsch.';err.style.display='block';btn.disabled=false;btn.textContent='Einloggen →';return;}
-  localStorage.setItem('musa_s',JSON.stringify({id:data.id,ts:Date.now()}));
+  localStorage.setItem('bd_s',JSON.stringify({id:data.id,ts:Date.now()}));
   await startApp(data);
   btn.disabled=false;btn.textContent='Einloggen →';
 }
@@ -812,7 +812,7 @@ async function startApp(ma){
 async function doLogout(){
   clearInterval(uhrI);clearInterval(stI);
   MA=null;aktStempel=null;
-  localStorage.removeItem('musa_s');
+  localStorage.removeItem('bd_s');
   document.getElementById('app').classList.remove('on');
   document.getElementById('login').style.display='flex';
   document.getElementById('lpin').value='';
@@ -821,18 +821,18 @@ async function doLogout(){
 
 // Auto-Session
 (async()=>{
-  const {data:m}=await db.from('musa_mitarbeiter').select('id,name,rolle').order('name');
+  const {data:m}=await db.from('bd_mitarbeiter').select('id,name,rolle').order('name');
   if(m){const s=document.getElementById('lname');m.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;s.appendChild(o);});}
-  const ss=localStorage.getItem('musa_s');
+  const ss=localStorage.getItem('bd_s');
   if(ss){
     try{
       const p=JSON.parse(ss);
       if(Date.now()-p.ts<8*3600*1000){
-        const {data}=await db.from('musa_mitarbeiter').select('*').eq('id',p.id).single();
+        const {data}=await db.from('bd_mitarbeiter').select('*').eq('id',p.id).single();
         if(data){await startApp(data);return;}
       }
-      localStorage.removeItem('musa_s');
-    }catch(e){localStorage.removeItem('musa_s');}
+      localStorage.removeItem('bd_s');
+    }catch(e){localStorage.removeItem('bd_s');}
   }
   document.getElementById('login').style.display='flex';
 })();
@@ -866,7 +866,7 @@ function startUhr(){
 async function init(){
   document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
   document.getElementById('rndat').value=new Date().toISOString().split('T')[0];
-  const [{data:p}]=await Promise.all([db.from('musa_projekte').select('*').order('name')]);
+  const [{data:p}]=await Promise.all([db.from('bd_projekte').select('*').order('name')]);
   projekte=p||[];
   ['sproj','rproj','rnproj'].forEach(id=>{
     const s=document.getElementById(id);if(!s)return;
@@ -880,7 +880,7 @@ async function init(){
 // ── STEMPEL ──
 async function ladeAktStempel(){
   if(!MA)return;
-  const {data}=await db.from('musa_stempeluhr').select('*').eq('mitarbeiter_id',MA.id).is('gestempelt_aus',null).order('gestempelt_ein',{ascending:false}).limit(1);
+  const {data}=await db.from('bd_stempeluhr').select('*').eq('mitarbeiter_id',MA.id).is('gestempelt_aus',null).order('gestempelt_ein',{ascending:false}).limit(1);
   if(data&&data.length){aktStempel={id:data[0].id,ein:new Date(data[0].gestempelt_ein),projId:data[0].projekt_id};stUIAn();}
   ladeHist();
 }
@@ -931,7 +931,7 @@ function updateBanner(){
 async function stempelKommen(){
   const pid=document.getElementById('sproj').value;
   if(!pid){showErr('Bitte Projekt auswählen.');return;}
-  const {data,error}=await db.from('musa_stempeluhr').insert({mitarbeiter_id:MA.id,projekt_id:pid,gestempelt_ein:new Date().toISOString()}).select().single();
+  const {data,error}=await db.from('bd_stempeluhr').insert({mitarbeiter_id:MA.id,projekt_id:pid,gestempelt_ein:new Date().toISOString()}).select().single();
   if(error){showErr('Fehler: '+error.message);return;}
   aktStempel={id:data.id,ein:new Date(data.gestempelt_ein),projId:pid};
   stUIAn();showOk('✅ Eingestempelt!');ladeHist();
@@ -940,7 +940,7 @@ async function stempelKommen(){
 async function stempelGehen(){
   if(!aktStempel)return;
   const jetzt=new Date();
-  const {error}=await db.from('musa_stempeluhr').update({gestempelt_aus:jetzt.toISOString()}).eq('id',aktStempel.id);
+  const {error}=await db.from('bd_stempeluhr').update({gestempelt_aus:jetzt.toISOString()}).eq('id',aktStempel.id);
   if(error){showErr('Fehler: '+error.message);return;}
   const diffH=((jetzt-aktStempel.ein)/3600000).toFixed(1);
   if(aktStempel.projId) document.getElementById('rproj').value=aktStempel.projId;
@@ -956,14 +956,14 @@ async function ladeHist(){
   if(!MA)return;
   const heute=new Date().toISOString().split('T')[0];
   // Stempel laden
-  const {data}=await db.from('musa_stempeluhr').select('*,musa_projekte(name,id)').eq('mitarbeiter_id',MA.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(8);
+  const {data}=await db.from('bd_stempeluhr').select('*,bd_projekte(name,id)').eq('mitarbeiter_id',MA.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(8);
   const el=document.getElementById('shist');
   if(!data||!data.length){el.innerHTML='<div class="empty"><div class="ei">⏳</div>Noch keine Einträge</div>';document.getElementById('sheute').textContent='0.0h heute';return;}
   // Tagesstunden
   const todayH=data.filter(r=>r.gestempelt_ein.startsWith(heute)).reduce((s,r)=>{const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);return s+((a-e)/3600000);},0);
   document.getElementById('sheute').textContent=fmtStd(todayH)+' heute';
   // Rapporte des Mitarbeiters laden um Abgleich zu machen
-  const {data:rr}=await db.from('musa_rapporte').select('datum,projekt_id').eq('mitarbeiter_id',MA.id).gte('datum',data[data.length-1].gestempelt_ein.split('T')[0]);
+  const {data:rr}=await db.from('bd_rapporte').select('datum,projekt_id').eq('mitarbeiter_id',MA.id).gte('datum',data[data.length-1].gestempelt_ein.split('T')[0]);
   const rapportKeys=new Set((rr||[]).map(r=>r.datum+'_'+r.projekt_id));
   el.innerHTML=data.map(r=>{
     const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);
@@ -974,8 +974,8 @@ async function ladeHist(){
     const dat=e.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
     const datISO=r.gestempelt_ein.split('T')[0];
     const zt=e.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' – '+a.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const pn=r.musa_projekte?.name||'—';
-    const pid=r.musa_projekte?.id||'';
+    const pn=r.bd_projekte?.name||'—';
+    const pid=r.bd_projekte?.id||'';
     // Prüfen ob für diesen Tag+Projekt schon ein Rapport existiert
     const hatRapport=rapportKeys.has(datISO+'_'+pid);
     const badge=hatRapport
@@ -1060,8 +1060,8 @@ async function rapportSenden(){
   const btn=document.getElementById('btnsend');btn.disabled=true;btn.textContent=istBearbeiten?'⏳ Aktualisiere…':'⏳ Sende…';
   const payload={projekt_id:pid,datum:dat,stunden:std,leistung:selL,beschreibung:desc,fotos:fotoData.slice(0,3)};
   const {error}=istBearbeiten
-    ?await db.from('musa_rapporte').update(payload).eq('id',bearbeiteterRapportId)
-    :await db.from('musa_rapporte').insert({...payload,mitarbeiter_id:MA.id});
+    ?await db.from('bd_rapporte').update(payload).eq('id',bearbeiteterRapportId)
+    :await db.from('bd_rapporte').insert({...payload,mitarbeiter_id:MA.id});
   if(error){
     showErr('Fehler: '+error.message);
     btn.disabled=false;btn.textContent=istBearbeiten?'Rapport aktualisieren →':'Rapport absenden →';
@@ -1106,7 +1106,7 @@ async function renderDash(){
   const el=document.getElementById('plist');
   try{
     const heute=new Date().toISOString().split('T')[0];
-    const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name),musa_projekte(name)').order('created_at',{ascending:false});
+    const {data:rr}=await db.from('bd_rapporte').select('*,bd_mitarbeiter(name),bd_projekte(name)').order('created_at',{ascending:false});
     dashData=rr||[];
     document.getElementById('kp').textContent=projekte.length;
     document.getElementById('kh').textContent=dashData.filter(x=>x.datum===heute).length;
@@ -1156,7 +1156,7 @@ function renderProjektKarte(){
   const [sc,sl]=sm[p.status]||['so',p.status];
   const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${l}</span>`).join('');
   const rhtml=pr.length===0?'<div class="empty-p">Noch keine Rapporte</div>':pr.map(x=>{
-    const mn=x.musa_mitarbeiter?.name||'—';
+    const mn=x.bd_mitarbeiter?.name||'—';
     const d=new Date(x.created_at);
     const ds=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const th=x.fotos&&x.fotos.length>0?`<img src="${x.fotos[0]}" class="rt">`:`<div class="rnt">📋</div>`;
@@ -1165,7 +1165,7 @@ function renderProjektKarte(){
 
   // Stundenverteilung nach Mitarbeiter
   const maMap={};
-  pr.forEach(x=>{const k=x.musa_mitarbeiter?.name||'—';maMap[k]=(maMap[k]||0)+(x.stunden||0);});
+  pr.forEach(x=>{const k=x.bd_mitarbeiter?.name||'—';maMap[k]=(maMap[k]||0)+(x.stunden||0);});
   const maListe=Object.entries(maMap).map(([name,h])=>({name,h})).sort((a,b)=>b.h-a.h);
 
   // Zeitlicher Verlauf: Stunden pro Woche seit dem ersten Rapport-Datum
@@ -1234,8 +1234,8 @@ function findRapport(id,quelle){
 function zeigeRapportModal(id,quelle){
   const r=findRapport(id,quelle);
   if(!r)return;
-  const mn=r.musa_mitarbeiter?.name||'—';
-  const pn=r.musa_projekte?.name||'—';
+  const mn=r.bd_mitarbeiter?.name||'—';
+  const pn=r.bd_projekte?.name||'—';
   const fotoHtml=(r.fotos&&r.fotos.length>0)?`<img src="${r.fotos[0]}" class="modal-photo">`:'<div class="modal-photo-ph">📋</div>';
   document.getElementById('rapModalContent').innerHTML=`
     ${fotoHtml}
@@ -1317,12 +1317,12 @@ async function renderAusw(){
   if(period==='woche'){const mo=new Date(h);mo.setDate(h.getDate()-h.getDay()+1);von=mo.toISOString().split('T')[0];}
   else if(period==='monat'){von=new Date(h.getFullYear(),h.getMonth(),1).toISOString().split('T')[0];}
   else{von='2000-01-01';}
-  const {data:rr}=await db.from('musa_rapporte').select('*,musa_mitarbeiter(name,rolle),musa_projekte(name)').gte('datum',von);
+  const {data:rr}=await db.from('bd_rapporte').select('*,bd_mitarbeiter(name,rolle),bd_projekte(name)').gte('datum',von);
   const r=rr||[];
   const gh=r.reduce((s,x)=>s+(x.stunden||0),0);
   ag.innerHTML=`<div class="gk"><div><div class="gl">${period==='woche'?'Diese Woche':period==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gv">${gh.toFixed(1)}h</div></div><div class="gc"><div class="gl">Rapporte</div><div class="gcv">${r.length}</div></div></div>`;
   const mm={};
-  r.forEach(x=>{const id=x.mitarbeiter_id;if(!mm[id])mm[id]={maId:id,n:x.musa_mitarbeiter?.name||'—',ro:x.musa_mitarbeiter?.rolle||'',h:0,rp:0,tg:new Set(),rapporte:[]};mm[id].h+=(x.stunden||0);mm[id].rp++;mm[id].tg.add(x.datum);mm[id].rapporte.push(x);});
+  r.forEach(x=>{const id=x.mitarbeiter_id;if(!mm[id])mm[id]={maId:id,n:x.bd_mitarbeiter?.name||'—',ro:x.bd_mitarbeiter?.rolle||'',h:0,rp:0,tg:new Set(),rapporte:[]};mm[id].h+=(x.stunden||0);mm[id].rp++;mm[id].tg.add(x.datum);mm[id].rapporte.push(x);});
   const arr=Object.values(mm).sort((a,b)=>b.h-a.h);
   // Alle Rapporte + aggregierte Mitarbeiterliste für die Auswahl speichern
   window._auswRapporte = r;
@@ -1391,19 +1391,19 @@ async function rechnungSpeichern(){
   if(!pid||!dat){showErr('Projekt und Datum ausfüllen.');return;}
   const netto=std*satz,brutto=netto*1.19;
   const nr='MUSA-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
-  const {error}=await db.from('musa_rechnungen').insert({projekt_id:pid,rechnungsnummer:nr,typ,datum:dat,stunden_gesamt:std,stundensatz:satz,betrag_netto:netto,betrag_brutto:brutto,status:'entwurf',notiz});
+  const {error}=await db.from('bd_rechnungen').insert({projekt_id:pid,rechnungsnummer:nr,typ,datum:dat,stunden_gesamt:std,stundensatz:satz,betrag_netto:netto,betrag_brutto:brutto,status:'entwurf',notiz});
   if(error){showErr('Fehler: '+error.message);return;}
   document.getElementById('nf').classList.remove('on');showOk('✅ Rechnung angelegt!');renderRech();
 }
 
 async function renderRech(){
   const el=document.getElementById('rl');el.innerHTML='<div class="load"><div class="spinner"></div></div>';
-  const {data:rr}=await db.from('musa_rechnungen').select('*,musa_projekte(name)').order('created_at',{ascending:false});
+  const {data:rr}=await db.from('bd_rechnungen').select('*,bd_projekte(name)').order('created_at',{ascending:false});
   if(!rr||!rr.length){el.innerHTML='<div class="empty"><div class="ei">📄</div>Noch keine Rechnungen.</div>';return;}
   const sm={entwurf:['rp-e','Entwurf'],gesendet:['rp-s','Gesendet'],bezahlt:['rp-b','Bezahlt']};
   el.innerHTML=rr.map(x=>{
     const [sc,sl]=sm[x.status]||['rp-e',x.status];
-    const pn=x.musa_projekte?.name||'—';
+    const pn=x.bd_projekte?.name||'—';
     const br=x.betrag_brutto?x.betrag_brutto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
     const nt=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
     return `<div class="rc"><div class="rct"><div><div class="rcnr">${x.rechnungsnummer}</div><div class="rcpr">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${x.id}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${x.id}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick='pdf(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${x.notiz}</div>`:''}</div>`;
@@ -1426,7 +1426,7 @@ async function renderMaKarte(){
   const rhtml=rr.length?rr.map(r=>`
       <div style="padding:12px 0;border-bottom:1px solid var(--r);cursor:pointer;" onclick="zeigeRapportModal('${r.id}','ausw')">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
-          <div style="font-size:14px;font-weight:800;color:var(--w);">${r.musa_projekte?.name||'—'}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--w);">${r.bd_projekte?.name||'—'}</div>
           <div style="font-size:16px;font-weight:900;color:var(--a);white-space:nowrap;">${r.stunden}h</div>
         </div>
         <div style="font-size:11px;color:var(--g);margin-bottom:5px;">${r.datum} · ${r.leistung}</div>
@@ -1438,7 +1438,7 @@ async function renderMaKarte(){
 
   // Verteilung nach Projekt (Liste/Balken)
   const projMap={};
-  m.rapporte.forEach(r=>{const k=r.musa_projekte?.name||'—';projMap[k]=(projMap[k]||0)+(r.stunden||0);});
+  m.rapporte.forEach(r=>{const k=r.bd_projekte?.name||'—';projMap[k]=(projMap[k]||0)+(r.stunden||0);});
   const projListe=Object.entries(projMap).map(([name,h])=>({name,h})).sort((a,b)=>b.h-a.h);
 
   // Wochentrend: letzte 8 Kalenderwochen (bei woche/monat separat aus DB, sonst aus vorhandenen Rapporten)
@@ -1447,8 +1447,8 @@ async function renderMaKarte(){
   const von=window._auswVon||'2000-01-01';
   const brauchtTrendFetch=(period==='woche'||period==='monat');
   const [trendRes,stempelRes]=await Promise.all([
-    brauchtTrendFetch?db.from('musa_rapporte').select('datum,stunden').eq('mitarbeiter_id',m.maId).gte('datum',weeks[0].startStr):Promise.resolve({data:m.rapporte}),
-    db.from('musa_stempeluhr').select('gestempelt_ein,projekt_id').eq('mitarbeiter_id',m.maId).not('gestempelt_aus','is',null).gte('gestempelt_ein',von)
+    brauchtTrendFetch?db.from('bd_rapporte').select('datum,stunden').eq('mitarbeiter_id',m.maId).gte('datum',weeks[0].startStr):Promise.resolve({data:m.rapporte}),
+    db.from('bd_stempeluhr').select('gestempelt_ein,projekt_id').eq('mitarbeiter_id',m.maId).not('gestempelt_aus','is',null).gte('gestempelt_ein',von)
   ]);
   if(ausgewaehlteMA!==meineAnfrage)return; // Auswahl hat sich während des Ladens geändert
   const trendQuelle=trendRes.data||[];
@@ -1547,7 +1547,7 @@ function pdfMA(name, maId){
   rr.forEach(r=>{
     if(y>270){doc.addPage();y=20;}
     doc.text(r.datum,14,y);
-    doc.text((r.musa_projekte?.name||'—').substring(0,30),50,y);
+    doc.text((r.bd_projekte?.name||'—').substring(0,30),50,y);
     doc.text(r.leistung.substring(0,20),120,y);
     doc.text(r.stunden.toFixed(1),196,y,{align:'right'});
     y+=7;
@@ -1585,7 +1585,7 @@ function pdfProjekt(projektId){
   rr.forEach(r=>{
     if(y>270){doc.addPage();y=20;}
     doc.text(r.datum,14,y);
-    doc.text((r.musa_mitarbeiter?.name||'—').substring(0,20),40,y);
+    doc.text((r.bd_mitarbeiter?.name||'—').substring(0,20),40,y);
     doc.text((r.leistung||'—').substring(0,18),85,y);
     doc.text((r.beschreibung||'').substring(0,30),125,y);
     doc.text((r.stunden||0).toFixed(1),196,y,{align:'right'});
@@ -1597,7 +1597,7 @@ function pdfProjekt(projektId){
   doc.save('Projekt_'+p.name.replace(/\s+/g,'_')+'.pdf');
 }
 
-async function rSt(id,st){await db.from('musa_rechnungen').update({status:st}).eq('id',id);showOk('Aktualisiert.');renderRech();}
+async function rSt(id,st){await db.from('bd_rechnungen').update({status:st}).eq('id',id);showOk('Aktualisiert.');renderRech();}
 
 function pdf(r,pn){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
