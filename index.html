@@ -517,7 +517,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
         <button onclick="showTab('home')" style="width:36px;height:36px;border-radius:10px;
           background:var(--k2);border:1px solid var(--r);color:var(--w);
           font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
-        <span style="font-size:16px;font-weight:800;">Tagesrapport</span>
+        <span style="font-size:16px;font-weight:800;" id="rapportTitel">Tagesrapport</span>
       </div>
       <div class="rapport">
         <div class="fg">
@@ -684,7 +684,7 @@ const SB='https://ysqzdqazcgyuzdorauiq.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzcXpkcWF6Y2d5dXpkb3JhdWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODM0NzcsImV4cCI6MjA5NTU1OTQ3N30.u5cbSVniUl5Zvlf2rdpnjtvDyKvv9csmPwvdtnEwWzE';
 const db=supabase.createClient(SB,SK);
 
-let MA=null,projekte=[],selL=null,fotoData=[],filter='alle',period='woche',aktStempel=null;
+let MA=null,projekte=[],selL=null,fotoData=[],filter='alle',period='woche',aktStempel=null,bearbeiteterRapportId=null;
 let uhrI=null,stI=null;
 
 // ── CHART-HELPER (Auswertung/Dashboard) ──
@@ -1046,18 +1046,26 @@ async function rapportSenden(){
   if(!pid||!std||!desc||!selL){showErr('Bitte alle Felder ausfüllen.');return;}
   if(std<0.5){std=0.5;document.getElementById('rstd').value='0.5';}
   if(std>16){showErr('Maximum 16 Stunden.');return;}
-  const btn=document.getElementById('btnsend');btn.disabled=true;btn.textContent='⏳ Sende…';
-  const {error}=await db.from('musa_rapporte').insert({projekt_id:pid,mitarbeiter_id:MA.id,datum:dat,stunden:std,leistung:selL,beschreibung:desc,fotos:fotoData.slice(0,3)});
-  if(error){showErr('Fehler: '+error.message);}
-  else{
-    document.getElementById('rproj').value='';document.getElementById('rstd').value='';document.getElementById('rbesc').value='';
-    document.getElementById('rstdh').style.display='none';
-    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
-    document.getElementById('fprev').innerHTML='';fotoData=[];selL=null;
-    document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
-    showOk('✅ Rapport übermittelt!');
-    setTimeout(()=>showTab('home'),1200);
+  const istBearbeiten=!!bearbeiteterRapportId;
+  const btn=document.getElementById('btnsend');btn.disabled=true;btn.textContent=istBearbeiten?'⏳ Aktualisiere…':'⏳ Sende…';
+  const payload={projekt_id:pid,datum:dat,stunden:std,leistung:selL,beschreibung:desc,fotos:fotoData.slice(0,3)};
+  const {error}=istBearbeiten
+    ?await db.from('musa_rapporte').update(payload).eq('id',bearbeiteterRapportId)
+    :await db.from('musa_rapporte').insert({...payload,mitarbeiter_id:MA.id});
+  if(error){
+    showErr('Fehler: '+error.message);
+    btn.disabled=false;btn.textContent=istBearbeiten?'Rapport aktualisieren →':'Rapport absenden →';
+    return;
   }
+  document.getElementById('rproj').value='';document.getElementById('rstd').value='';document.getElementById('rbesc').value='';
+  document.getElementById('rstdh').style.display='none';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  document.getElementById('fprev').innerHTML='';fotoData=[];selL=null;
+  document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
+  bearbeiteterRapportId=null;
+  document.getElementById('rapportTitel').textContent='Tagesrapport';
+  showOk(istBearbeiten?'✅ Rapport aktualisiert!':'✅ Rapport übermittelt!');
+  setTimeout(()=>showTab('home'),1200);
   btn.disabled=false;btn.textContent='Rapport absenden →';
 }
 
@@ -1208,9 +1216,13 @@ function renderProjektKarte(){
 function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
 
 // ── RAPPORT-DETAIL-MODAL (Projekt- & Mitarbeiter-Karte) ──
-function zeigeRapportModal(id,quelle){
+function findRapport(id,quelle){
   const arr=quelle==='projekt'?dashData:(window._auswRapporte||[]);
-  const r=(arr||[]).find(x=>String(x.id)===String(id));
+  return (arr||[]).find(x=>String(x.id)===String(id));
+}
+
+function zeigeRapportModal(id,quelle){
+  const r=findRapport(id,quelle);
   if(!r)return;
   const mn=r.musa_mitarbeiter?.name||'—';
   const pn=r.musa_projekte?.name||'—';
@@ -1225,12 +1237,34 @@ function zeigeRapportModal(id,quelle){
         <div class="modal-meta-item"><div class="modal-meta-l">Stunden</div><div class="modal-meta-v">${r.stunden}h</div></div>
       </div>
       <div class="modal-desc">${r.beschreibung||''}</div>
+      <button onclick="bearbeiteRapport('${id}','${quelle}')" style="width:100%;margin-top:16px;padding:10px;background:var(--k3);color:var(--w);border:1px solid var(--r);border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">✎ Bearbeiten</button>
     </div>`;
   document.getElementById('rapModal').classList.add('on');
 }
 
 function schliesseRapportModal(){
   document.getElementById('rapModal').classList.remove('on');
+}
+
+function bearbeiteRapport(id,quelle){
+  const r=findRapport(id,quelle);
+  if(!r)return;
+  schliesseRapportModal();
+  showTab('rapport');
+  setTimeout(()=>{
+    document.getElementById('rproj').value=r.projekt_id;
+    const chipEl=[...document.querySelectorAll('.chip')].find(c=>c.dataset.v===r.leistung);
+    if(chipEl)chip(chipEl);
+    document.getElementById('rdat').value=r.datum;
+    document.getElementById('rstd').value=r.stunden;
+    document.getElementById('rstdh').style.display='none';
+    document.getElementById('rbesc').value=r.beschreibung||'';
+    fotoData=(r.fotos||[]).slice();
+    renderFotoPrev();
+    bearbeiteterRapportId=r.id;
+    document.getElementById('rapportTitel').textContent='Rapport bearbeiten';
+    document.getElementById('btnsend').textContent='Rapport aktualisieren →';
+  },100);
 }
 
 // ── LISTE/AUSWERTUNG-TOGGLE (Mitarbeiter- & Projekt-Detailkarte) ──
