@@ -462,7 +462,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
           </div>
           <div class="hbtn-arr">›</div>
         </div>
-        <div class="hbtn" onclick="showTab('rapport')">
+        <div class="hbtn" onclick="neuerRapport()">
           <div class="hbtn-icon">📋</div>
           <div class="hbtn-txt">
             <div class="hbtn-t">Tagesrapport</div>
@@ -653,7 +653,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
     <button class="tb" id="tb-stempel" onclick="showTab('stempel')">
       <span class="tb-icon">⏱</span>Stempel
     </button>
-    <button class="tb" id="tb-rapport" onclick="showTab('rapport')">
+    <button class="tb" id="tb-rapport" onclick="neuerRapport()">
       <span class="tb-icon">📋</span>Rapport
     </button>
     <button class="tb pl-tab" id="tb-dashboard" onclick="showTab('dashboard')" style="display:none;">
@@ -989,7 +989,7 @@ async function ladeHist(){
 }
 
 function rapportVonStempel(pid,dat,std){
-  showTab('rapport');
+  neuerRapport();
   setTimeout(()=>{
     if(pid) document.getElementById('rproj').value=pid;
     if(std) document.getElementById('rstd').value=std;
@@ -999,6 +999,16 @@ function rapportVonStempel(pid,dat,std){
 }
 
 // ── RAPPORT ──
+// Normaler Einstieg in den Rapport-Tab (Home-Button, Tab-Bar, Stempel-Historie) — setzt einen
+// evtl. offenen Bearbeiten-Modus zurück, damit kein bestehender Rapport versehentlich überschrieben wird.
+// bearbeiteRapport() ruft bewusst showTab('rapport') direkt auf, NICHT diesen Helfer.
+function neuerRapport(){
+  bearbeiteterRapportId=null;
+  document.getElementById('rapportTitel').textContent='Tagesrapport';
+  document.getElementById('btnsend').textContent='Rapport absenden →';
+  showTab('rapport');
+}
+
 function chip(el){document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');selL=el.dataset.v;}
 
 function handleFotos(e){
@@ -1066,7 +1076,7 @@ async function rapportSenden(){
   document.getElementById('rapportTitel').textContent='Tagesrapport';
   showOk(istBearbeiten?'✅ Rapport aktualisiert!':'✅ Rapport übermittelt!');
   setTimeout(()=>showTab('home'),1200);
-  btn.disabled=false;btn.textContent='Rapport absenden →';
+  btn.disabled=false;btn.textContent=bearbeiteterRapportId?'Rapport aktualisieren →':'Rapport absenden →';
 }
 
 // ── DASHBOARD ──
