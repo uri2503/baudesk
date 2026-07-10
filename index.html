@@ -258,7 +258,7 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
   border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
 .rp{display:none;border-top:1px solid var(--r);}
 .pk.op .rp{display:block;}
-.ri{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--r);align-items:flex-start;}
+.ri{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--r);align-items:flex-start;cursor:pointer;}
 .ri:last-child{border-bottom:none;}
 .rt{width:46px;height:46px;object-fit:cover;border-radius:7px;border:1px solid var(--r);flex-shrink:0;}
 .rnt{width:46px;height:46px;border-radius:7px;border:1px solid var(--r);flex-shrink:0;
@@ -374,6 +374,27 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 .toast.on{display:block;}
 .tok{background:var(--gr);color:var(--k);}
 .ter{background:var(--rt);color:#fff;}
+
+/* RAPPORT-DETAIL-MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:800;
+  display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-ov.on{display:flex;}
+.modal-card{background:var(--k2);border:1px solid var(--r);border-radius:20px;
+  width:100%;max-width:480px;max-height:100%;overflow-y:auto;position:relative;}
+.modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;
+  background:rgba(0,0,0,.5);border:none;color:var(--w);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;z-index:1;font-family:'Inter',sans-serif;}
+.modal-photo{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;border-radius:20px 20px 0 0;}
+.modal-photo-ph{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+  font-size:48px;background:var(--k3);border-radius:20px 20px 0 0;color:var(--g);}
+.modal-body{padding:20px;}
+.modal-title{font-size:18px;font-weight:800;letter-spacing:-.01em;}
+.modal-sub{font-size:12px;color:var(--g);margin-top:3px;margin-bottom:16px;}
+.modal-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.modal-meta-item{background:var(--k3);border-radius:10px;padding:10px 12px;}
+.modal-meta-l{font-size:10px;color:var(--g);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;}
+.modal-meta-v{font-size:14px;font-weight:700;color:var(--a);}
+.modal-desc{font-size:13px;line-height:1.6;color:var(--tx);background:var(--k3);border-radius:10px;padding:12px 14px;}
 </style>
 </head>
 <body>
@@ -649,6 +670,14 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--w);}
 
 <div class="toast tok" id="tok"></div>
 <div class="toast ter" id="ter"></div>
+
+<!-- RAPPORT-DETAIL-MODAL -->
+<div class="modal-ov" id="rapModal" onclick="schliesseRapportModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="schliesseRapportModal()">✕</button>
+    <div id="rapModalContent"></div>
+  </div>
+</div>
 
 <script>
 const SB='https://ysqzdqazcgyuzdorauiq.supabase.co';
@@ -1113,7 +1142,7 @@ function renderProjektKarte(){
     const d=new Date(x.created_at);
     const ds=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const th=x.fotos&&x.fotos.length>0?`<img src="${x.fotos[0]}" class="rt">`:`<div class="rnt">📋</div>`;
-    return `<div class="ri">${th}<div class="rb"><div class="rtp"><div class="rnm">${mn}</div><div class="rts">${ds}</div></div><div class="rdesc">${x.beschreibung}</div><div class="rmeta">⏱ ${x.stunden}h · ${x.leistung}</div></div></div>`;
+    return `<div class="ri" onclick="zeigeRapportModal('${x.id}','projekt')">${th}<div class="rb"><div class="rtp"><div class="rnm">${mn}</div><div class="rts">${ds}</div></div><div class="rdesc">${x.beschreibung}</div><div class="rmeta">⏱ ${x.stunden}h · ${x.leistung}</div></div></div>`;
   }).join('');
 
   // Stundenverteilung nach Mitarbeiter
@@ -1163,6 +1192,9 @@ function renderProjektKarte(){
         ${leist.labels.length?'<div class="anb-chart"><canvas id="chPrLeistung"></canvas></div>':'<div class="anb-empty">Keine Daten.</div>'}
       </div>
     </div>
+    <div style="padding:14px;">
+      <button onclick="pdfProjekt('${p.id}')" style="width:100%;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${p.name}</button>
+    </div>
   </div>`;
 
   if(verlaufData.length){
@@ -1174,6 +1206,32 @@ function renderProjektKarte(){
 }
 
 function zuR(id){showTab('rechnungen');setTimeout(()=>{document.getElementById('rnproj').value=id;document.getElementById('nf').classList.add('on');},150);}
+
+// ── RAPPORT-DETAIL-MODAL (Projekt- & Mitarbeiter-Karte) ──
+function zeigeRapportModal(id,quelle){
+  const arr=quelle==='projekt'?dashData:(window._auswRapporte||[]);
+  const r=(arr||[]).find(x=>String(x.id)===String(id));
+  if(!r)return;
+  const mn=r.musa_mitarbeiter?.name||'—';
+  const pn=r.musa_projekte?.name||'—';
+  const fotoHtml=(r.fotos&&r.fotos.length>0)?`<img src="${r.fotos[0]}" class="modal-photo">`:'<div class="modal-photo-ph">📋</div>';
+  document.getElementById('rapModalContent').innerHTML=`
+    ${fotoHtml}
+    <div class="modal-body">
+      <div class="modal-title">${pn}</div>
+      <div class="modal-sub">${mn} · ${r.datum}</div>
+      <div class="modal-meta">
+        <div class="modal-meta-item"><div class="modal-meta-l">Leistungsbereich</div><div class="modal-meta-v">${r.leistung||'—'}</div></div>
+        <div class="modal-meta-item"><div class="modal-meta-l">Stunden</div><div class="modal-meta-v">${r.stunden}h</div></div>
+      </div>
+      <div class="modal-desc">${r.beschreibung||''}</div>
+    </div>`;
+  document.getElementById('rapModal').classList.add('on');
+}
+
+function schliesseRapportModal(){
+  document.getElementById('rapModal').classList.remove('on');
+}
 
 // ── LISTE/AUSWERTUNG-TOGGLE (Mitarbeiter- & Projekt-Detailkarte) ──
 // Ansicht wird pro Kartentyp gemerkt, nicht zurückgesetzt bei Auswahlwechsel — nur beim Neuladen der Seite Standard 'liste'.
@@ -1322,7 +1380,7 @@ async function renderMaKarte(){
   const rl={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'}[m.ro]||m.ro;
   const rr=m.rapporte.slice().sort((a,b)=>b.datum.localeCompare(a.datum));
   const rhtml=rr.length?rr.map(r=>`
-      <div style="padding:12px 0;border-bottom:1px solid var(--r);">
+      <div style="padding:12px 0;border-bottom:1px solid var(--r);cursor:pointer;" onclick="zeigeRapportModal('${r.id}','ausw')">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
           <div style="font-size:14px;font-weight:800;color:var(--w);">${r.musa_projekte?.name||'—'}</div>
           <div style="font-size:16px;font-weight:900;color:var(--a);white-space:nowrap;">${r.stunden}h</div>
@@ -1454,6 +1512,45 @@ function pdfMA(name, maId){
   doc.setFont('helvetica','bold');
   doc.text('Gesamt:',140,y);doc.text(totalH.toFixed(1)+' Std.',196,y,{align:'right'});
   doc.save('Auswertung_'+name.replace(' ','_')+'.pdf');
+}
+
+function pdfProjekt(projektId){
+  const p=projekte.find(x=>x.id===projektId);
+  if(!p)return;
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
+  const rr=(dashData||[]).filter(r=>r.projekt_id===projektId).sort((a,b)=>b.datum.localeCompare(a.datum));
+  const totalH=rr.reduce((s,r)=>s+(r.stunden||0),0);
+  // Header
+  doc.setFillColor(245,158,11);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(24,24,27);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('BauDesk — Projektauswertung',14,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Erstellt am '+new Date().toLocaleDateString('de-DE'),14,20);
+  doc.setTextColor(30,30,30);
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(p.name,14,42);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text((p.kunde||'—')+' · Gesamt: '+totalH.toFixed(1)+' Stunden · '+rr.length+' Rapporte',14,50);
+  doc.setDrawColor(245,158,11);doc.setLineWidth(.5);doc.line(14,56,196,56);
+  // Tabelle
+  doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text('Datum',14,64);doc.text('Mitarbeiter',40,64);doc.text('Leistung',85,64);doc.text('Beschreibung',125,64);doc.text('Std.',196,64,{align:'right'});
+  doc.setDrawColor(200,200,200);doc.line(14,67,196,67);
+  doc.setFont('helvetica','normal');
+  let y=73;
+  rr.forEach(r=>{
+    if(y>270){doc.addPage();y=20;}
+    doc.text(r.datum,14,y);
+    doc.text((r.musa_mitarbeiter?.name||'—').substring(0,20),40,y);
+    doc.text((r.leistung||'—').substring(0,18),85,y);
+    doc.text((r.beschreibung||'').substring(0,30),125,y);
+    doc.text((r.stunden||0).toFixed(1),196,y,{align:'right'});
+    y+=7;
+  });
+  doc.line(14,y,196,y);y+=7;
+  doc.setFont('helvetica','bold');
+  doc.text('Gesamt:',140,y);doc.text(totalH.toFixed(1)+' Std.',196,y,{align:'right'});
+  doc.save('Projekt_'+p.name.replace(/\s+/g,'_')+'.pdf');
 }
 
 async function rSt(id,st){await db.from('musa_rechnungen').update({status:st}).eq('id',id);showOk('Aktualisiert.');renderRech();}
