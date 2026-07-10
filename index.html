@@ -715,6 +715,16 @@ let uhrI=null,stI=null;
 const ROLLEN_LABEL={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'};
 const PROJEKT_STATUS={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
 
+// Kombinierte Adress-Anzeige aus strasse/hausnummer/plz/ort; Fallback auf das alte
+// unstrukturierte adresse-Feld (Altdaten), solange die strukturierten Felder leer sind.
+function formatProjektAdresse(p){
+  const strasse=[p.strasse,p.hausnummer].filter(Boolean).join(' ').trim();
+  const ort=[p.plz,p.ort].filter(Boolean).join(' ').trim();
+  const teile=[strasse,ort].filter(Boolean);
+  if(teile.length)return teile.join(', ');
+  return p.adresse||'';
+}
+
 // ── CHART-HELPER (Auswertung/Dashboard) ──
 // Feste Reihenfolge & Farben je Leistungsbereich (Identität bleibt über beide Charts stabil)
 const LEISTUNG_ORDER=['Elektroinstallation','Erneuerbare Energien','Sicherheit','Haustechnik','Industrie & Gewerbe','Licht & Leuchten','Elektromobilität','Multimedia'];
@@ -1228,11 +1238,12 @@ function renderProjektKarte(){
 
   // Leistungsbereiche im Projekt
   const leist=leistungAggregat(pr);
+  const adresseAnzeige=formatProjektAdresse(p);
 
   el.innerHTML=`<button class="back-btn" onclick="zurueckZuProjekten()">‹</button>
   <div class="pk op">
     <div class="ph">
-      <div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div><div class="ptags">${tags}</div></div>
+      <div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div>${adresseAnzeige?`<div class="pm">${adresseAnzeige}</div>`:''}<div class="ptags">${tags}</div></div>
       <span class="sp ${sc}">${sl}</span>
     </div>
     <div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="zuR('${p.id}')">📄 Rechnung</button></div>
@@ -1623,14 +1634,22 @@ function pdfProjekt(projektId){
   doc.setFontSize(14);doc.setFont('helvetica','bold');
   doc.text(p.name,14,42);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
-  doc.text((p.kunde||'—')+' · Gesamt: '+totalH.toFixed(1)+' Stunden · '+rr.length+' Rapporte',14,50);
-  doc.setDrawColor(245,158,11);doc.setLineWidth(.5);doc.line(14,56,196,56);
+  let headerY=50;
+  doc.text((p.kunde||'—')+' · Gesamt: '+totalH.toFixed(1)+' Stunden · '+rr.length+' Rapporte',14,headerY);
+  const adresseAnzeige=formatProjektAdresse(p);
+  if(adresseAnzeige){
+    headerY+=6;
+    doc.text(adresseAnzeige,14,headerY);
+  }
+  const trennY=headerY+6;
+  doc.setDrawColor(245,158,11);doc.setLineWidth(.5);doc.line(14,trennY,196,trennY);
   // Tabelle
   doc.setFont('helvetica','bold');doc.setFontSize(9);
-  doc.text('Datum',14,64);doc.text('Mitarbeiter',40,64);doc.text('Leistung',85,64);doc.text('Beschreibung',125,64);doc.text('Std.',196,64,{align:'right'});
-  doc.setDrawColor(200,200,200);doc.line(14,67,196,67);
+  const tabelleY=trennY+8;
+  doc.text('Datum',14,tabelleY);doc.text('Mitarbeiter',40,tabelleY);doc.text('Leistung',85,tabelleY);doc.text('Beschreibung',125,tabelleY);doc.text('Std.',196,tabelleY,{align:'right'});
+  doc.setDrawColor(200,200,200);doc.line(14,tabelleY+3,196,tabelleY+3);
   doc.setFont('helvetica','normal');
-  let y=73;
+  let y=tabelleY+9;
   rr.forEach(r=>{
     if(y>270){doc.addPage();y=20;}
     doc.text(r.datum,14,y);
@@ -1861,7 +1880,17 @@ function sdZeigeProjFormular(p){
       <div class="nft">${istNeu?'Neues Projekt':'Projekt bearbeiten'}</div>
       <div class="ff"><label class="fl">Name</label><input type="text" id="sdProjName" class="fi" value="${p?.name||''}"></div>
       <div class="ff"><label class="fl">Kunde</label><input type="text" id="sdProjKunde" class="fi" value="${p?.kunde||''}"></div>
-      <div class="ff"><label class="fl">Adresse</label><input type="text" id="sdProjAdresse" class="fi" value="${p?.adresse||''}"></div>
+      <div class="ff">
+        <label class="fl">Adresse</label>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px;">
+          <input type="text" id="sdProjStrasse" class="fi" placeholder="Straße" value="${p?.strasse||''}">
+          <input type="text" id="sdProjHausnr" class="fi" placeholder="Nr." value="${p?.hausnummer||''}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;">
+          <input type="text" id="sdProjPlz" class="fi" placeholder="PLZ" inputmode="numeric" value="${p?.plz||''}">
+          <input type="text" id="sdProjOrt" class="fi" placeholder="Ort" value="${p?.ort||''}">
+        </div>
+      </div>
       <div class="ff"><label class="fl">Status</label>
         <select id="sdProjStatus" class="fs">
           <option value="offen">Offen</option>
@@ -1902,14 +1931,19 @@ function sdToggleProjLeistung(el,val){
 async function sdProjektSpeichern(){
   const name=document.getElementById('sdProjName').value.trim();
   const kunde=document.getElementById('sdProjKunde').value.trim();
-  const adresse=document.getElementById('sdProjAdresse').value.trim();
+  const strasse=document.getElementById('sdProjStrasse').value.trim();
+  const hausnummer=document.getElementById('sdProjHausnr').value.trim();
+  const plz=document.getElementById('sdProjPlz').value.trim();
+  const ort=document.getElementById('sdProjOrt').value.trim();
   const status=document.getElementById('sdProjStatus').value;
   const auftragswertRaw=document.getElementById('sdProjAuftragswert').value;
   const budgetRaw=document.getElementById('sdProjBudget').value;
   if(!name){showErr('Bitte mindestens einen Namen angeben.');return;}
   const btn=document.getElementById('sdProjSaveBtn');btn.disabled=true;
   const payload={
-    name,kunde:kunde||null,adresse:adresse||null,status,
+    name,kunde:kunde||null,
+    strasse:strasse||null,hausnummer:hausnummer||null,plz:plz||null,ort:ort||null,
+    status,
     leistungen:sdProjLeistungenWert,
     auftragswert:auftragswertRaw===''?null:parseFloat(auftragswertRaw),
     budget_stunden:budgetRaw===''?null:parseFloat(budgetRaw)
