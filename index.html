@@ -1450,7 +1450,7 @@ async function rechnungSpeichern(){
   const satz=parseFloat(document.getElementById('rnsatz').value)||85,notiz=document.getElementById('rnnotiz').value;
   if(!pid||!dat){showErr('Projekt und Datum ausfüllen.');return;}
   const netto=std*satz,brutto=netto*1.19;
-  const nr='MUSA-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
+  const nr='BD-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-4);
   const {error}=await db.from('bd_rechnungen').insert({projekt_id:pid,rechnungsnummer:nr,typ,datum:dat,stunden_gesamt:std,stundensatz:satz,betrag_netto:netto,betrag_brutto:brutto,status:'entwurf',notiz});
   if(error){showErr('Fehler: '+error.message);return;}
   document.getElementById('nf').classList.remove('on');showOk('✅ Rechnung angelegt!');renderRech();
@@ -1466,7 +1466,7 @@ async function renderRech(){
     const pn=x.bd_projekte?.name||'—';
     const br=x.betrag_brutto?x.betrag_brutto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
     const nt=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
-    return `<div class="rc"><div class="rct"><div><div class="rcnr">${x.rechnungsnummer}</div><div class="rcpr">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${x.id}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${x.id}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick='pdf(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${x.notiz}</div>`:''}</div>`;
+    return `<div class="rc"><div class="rct"><div><div class="rcnr">${x.rechnungsnummer}</div><div class="rcpr">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${x.id}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${x.id}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick='pdf(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button><button class="btn-ra" style="color:var(--rt);" onclick="rechnungLoeschen('${x.id}','${x.rechnungsnummer}')">🗑 Löschen</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${x.notiz}</div>`:''}</div>`;
   }).join('');
 }
 
@@ -1666,6 +1666,14 @@ function pdfProjekt(projektId){
 }
 
 async function rSt(id,st){await db.from('bd_rechnungen').update({status:st}).eq('id',id);showOk('Aktualisiert.');renderRech();}
+
+async function rechnungLoeschen(id,nr){
+  if(!confirm(`Rechnung ${nr} wirklich löschen?`))return;
+  const {error}=await db.from('bd_rechnungen').delete().eq('id',id);
+  if(error){showErr('Fehler: '+error.message);return;}
+  showOk('Rechnung gelöscht.');
+  renderRech();
+}
 
 function pdf(r,pn){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
