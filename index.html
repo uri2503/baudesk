@@ -715,6 +715,16 @@ let uhrI=null,stI=null;
 const ROLLEN_LABEL={monteur:'Monteur',bauleiter:'Bauleiter',projektleiter:'Projektleiter',admin:'Admin'};
 const PROJEKT_STATUS={offen:['pill-o','Offen'],aktiv:['pill-a','In Arbeit'],abnahme:['pill-ab','Abnahme'],abgerechnet:['pill-g','Abgerechnet'],abgeschlossen:['pill-g','Abgeschlossen']};
 
+// HTML-Escaping für ALLE DB-/Nutzertexte, die per innerHTML gerendert werden (Text- UND
+// Attribut-Kontext — escaped daher auch " und '). Verhindert stored XSS über Namen,
+// Beschreibungen, Projekt-/Kundennamen etc.
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// Lokales Kalenderdatum als YYYY-MM-DD. Bewusst NICHT toISOString() (=UTC), sonst verschieben
+// sich "heute" und Wochengrenzen in DE (UTC+1/+2) um einen Tag.
+function isoLokal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function heuteISO(){return isoLokal(new Date());}
+
 // Kombinierte Adress-Anzeige aus strasse/hausnummer/plz/ort; Fallback auf das alte
 // unstrukturierte adresse-Feld (Altdaten), solange die strukturierten Felder leer sind.
 function formatProjektAdresse(p){
@@ -756,7 +766,7 @@ function chartTickOpts(){
   return {color:cssVar('--g'),font:{size:10}};
 }
 function mondayOf(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;}
-function isoDat(d){return d.toISOString().split('T')[0];}
+function isoDat(d){return isoLokal(d);}
 function last8WeekRanges(){
   const weeks=[];
   const thisMonday=mondayOf(new Date());
@@ -787,7 +797,7 @@ function balkenListe(items){
   const max=items[0].h||1;
   return items.map(it=>`
     <div class="anb-row">
-      <div class="anb-row-h"><span class="anb-row-n">${it.name}</span><span class="anb-row-v">${fmtStd(it.h)}</span></div>
+      <div class="anb-row-h"><span class="anb-row-n">${esc(it.name)}</span><span class="anb-row-v">${fmtStd(it.h)}</span></div>
       <div class="bar-t"><div class="bar-f" style="width:${Math.round((it.h/max)*100)}%"></div></div>
     </div>`).join('');
 }
@@ -822,7 +832,7 @@ async function doLogin(){
   err.style.display='none';
   if(!id||!pin){err.textContent='Bitte Mitarbeiter und PIN eingeben.';err.style.display='block';return;}
   btn.disabled=true;btn.textContent='⏳';
-  const {data,error}=await db.from('bd_mitarbeiter').select('*').eq('id',id).eq('pin',pin).single();
+  const {data,error}=await db.from('bd_mitarbeiter').select('id,name,rolle,email,stundensatz,aktiv,auth_user_id').eq('id',id).eq('pin',pin).single();
   if(error||!data){err.textContent='PIN falsch.';err.style.display='block';btn.disabled=false;btn.textContent='Einloggen →';return;}
   localStorage.setItem('bd_s',JSON.stringify({id:data.id,ts:Date.now()}));
   await startApp(data);
@@ -879,7 +889,7 @@ async function ladeMitarbeiterFuerLogin(){
     try{
       const p=JSON.parse(ss);
       if(Date.now()-p.ts<8*3600*1000){
-        const {data}=await db.from('bd_mitarbeiter').select('*').eq('id',p.id).single();
+        const {data}=await db.from('bd_mitarbeiter').select('id,name,rolle,email,stundensatz,aktiv,auth_user_id').eq('id',p.id).single();
         if(data){await startApp(data);return;}
       }
       localStorage.removeItem('bd_s');
@@ -930,8 +940,8 @@ async function ladeProjekte(){
 }
 
 async function init(){
-  document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
-  document.getElementById('rndat').value=new Date().toISOString().split('T')[0];
+  document.getElementById('rdat').value=heuteISO();
+  document.getElementById('rndat').value=heuteISO();
   await ladeProjekte();
   await ladeAktStempel();
   await ladeHist();
@@ -942,7 +952,7 @@ async function ladeAktStempel(){
   if(!MA)return;
   const {data}=await db.from('bd_stempeluhr').select('*').eq('mitarbeiter_id',MA.id).is('gestempelt_aus',null).order('gestempelt_ein',{ascending:false}).limit(1);
   if(data&&data.length){aktStempel={id:data[0].id,ein:new Date(data[0].gestempelt_ein),projId:data[0].projekt_id};stUIAn();}
-  ladeHist();
+  // ladeHist() wird direkt von init() aufgerufen — hier kein doppelter Aufruf mehr.
 }
 
 function stUIAn(){
@@ -1005,7 +1015,7 @@ async function stempelGehen(){
   const diffH=((jetzt-aktStempel.ein)/3600000).toFixed(1);
   if(aktStempel.projId) document.getElementById('rproj').value=aktStempel.projId;
   document.getElementById('rstd').value=diffH;
-  document.getElementById('rdat').value=jetzt.toISOString().split('T')[0];
+  document.getElementById('rdat').value=isoLokal(jetzt);
   document.getElementById('rstdh').style.display='block';
   stUIAus();
   showOk('✅ Ausgestempelt — Rapport vorausgefüllt!');
@@ -1014,10 +1024,13 @@ async function stempelGehen(){
 
 async function ladeHist(){
   if(!MA)return;
+  // "heute" bleibt hier bewusst UTC: gestempelt_ein wird als UTC-ISO gespeichert, der Vergleich
+  // per startsWith(heute) ist damit konsistent.
   const heute=new Date().toISOString().split('T')[0];
   // Stempel laden
-  const {data}=await db.from('bd_stempeluhr').select('*,bd_projekte(name,id)').eq('mitarbeiter_id',MA.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(8);
+  const {data,error}=await db.from('bd_stempeluhr').select('*,bd_projekte(name,id)').eq('mitarbeiter_id',MA.id).not('gestempelt_aus','is',null).order('gestempelt_ein',{ascending:false}).limit(8);
   const el=document.getElementById('shist');
+  if(error){el.innerHTML='<div class="empty"><div class="ei">⚠️</div>'+esc(error.message)+'</div>';return;}
   if(!data||!data.length){el.innerHTML='<div class="empty"><div class="ei">⏳</div>Noch keine Einträge</div>';document.getElementById('sheute').textContent='0.0h heute';return;}
   // Tagesstunden
   const todayH=data.filter(r=>r.gestempelt_ein.startsWith(heute)).reduce((s,r)=>{const e=new Date(r.gestempelt_ein),a=new Date(r.gestempelt_aus);return s+((a-e)/3600000);},0);
@@ -1042,7 +1055,7 @@ async function ladeHist(){
       ? '<div class="hist-badge" style="background:rgba(34,197,94,.12);color:#22C55E;border-color:rgba(34,197,94,.3);">✅ Rapport</div>'
       : '<div class="hist-badge" style="background:rgba(239,68,68,.12);color:#EF4444;border-color:rgba(239,68,68,.3);">🔴 Offen</div>';
     return `<div class="hist-row" onclick="rapportVonStempel('${pid}','${datISO}','${std}')" >
-      <div><div class="hist-pn">${pn}</div><div class="hist-m">${dat} · ${zt}</div></div>
+      <div><div class="hist-pn">${esc(pn)}</div><div class="hist-m">${dat} · ${zt}</div></div>
       <div class="hist-r"><div class="hist-h">${stdFmt}</div>${badge}</div>
     </div>`;
   }).join('');
@@ -1131,7 +1144,7 @@ async function rapportSenden(){
   document.getElementById('rstdh').style.display='none';
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   document.getElementById('fprev').innerHTML='';fotoData=[];selL=null;
-  document.getElementById('rdat').value=new Date().toISOString().split('T')[0];
+  document.getElementById('rdat').value=heuteISO();
   bearbeiteterRapportId=null;
   document.getElementById('rapportTitel').textContent='Tagesrapport';
   showOk(istBearbeiten?'✅ Rapport aktualisiert!':'✅ Rapport übermittelt!');
@@ -1165,8 +1178,9 @@ function zurueckZuProjekten(){
 async function renderDash(){
   const el=document.getElementById('plist');
   try{
-    const heute=new Date().toISOString().split('T')[0];
-    const {data:rr}=await db.from('bd_rapporte').select('*,bd_mitarbeiter(name),bd_projekte(name)').order('created_at',{ascending:false});
+    const heute=heuteISO();
+    const {data:rr,error}=await db.from('bd_rapporte').select('*,bd_mitarbeiter(name),bd_projekte(name)').order('created_at',{ascending:false});
+    if(error)throw error;
     dashData=rr||[];
     document.getElementById('kp').textContent=projekte.length;
     document.getElementById('kh').textContent=dashData.filter(x=>x.datum===heute).length;
@@ -1174,7 +1188,7 @@ async function renderDash(){
     document.getElementById('ka').textContent=projekte.filter(p=>p.status==='aktiv'||p.status==='offen').length;
     populateProjSelect(false);
     renderProjektKarte();
-  }catch(e){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${e.message}</div>`;}
+  }catch(e){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${esc(e.message)}</div>`;}
 }
 
 function gefiltertProjekte(){
@@ -1187,7 +1201,7 @@ function populateProjSelect(keepSelection){
   const sel=document.getElementById('dproj');
   const cur=keepSelection?sel.value:'';
   const gf=gefiltertProjekte();
-  sel.innerHTML='<option value="">— Projekt auswählen —</option>'+gf.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  sel.innerHTML='<option value="">— Projekt auswählen —</option>'+gf.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   if(cur&&gf.some(p=>p.id===cur)){
     sel.value=cur;
     ausgewaehltesProjekt=cur;
@@ -1213,13 +1227,13 @@ function renderProjektKarte(){
   const pr=r.filter(x=>x.projekt_id===p.id);
   const sh=pr.reduce((s,x)=>s+(x.stunden||0),0);
   const [sc,sl]=PROJEKT_STATUS[p.status]||['so',p.status];
-  const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${l}</span>`).join('');
+  const tags=(p.leistungen||[]).map(l=>`<span class="ptag">${esc(l)}</span>`).join('');
   const rhtml=pr.length===0?'<div class="empty-p">Noch keine Rapporte</div>':pr.map(x=>{
     const mn=x.bd_mitarbeiter?.name||'—';
     const d=new Date(x.created_at);
     const ds=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const th=x.fotos&&x.fotos.length>0?`<img src="${x.fotos[0]}" class="rt">`:`<div class="rnt">📋</div>`;
-    return `<div class="ri" onclick="zeigeRapportModal('${x.id}','projekt')">${th}<div class="rb"><div class="rtp"><div class="rnm">${mn}</div><div class="rts">${ds}</div></div><div class="rdesc">${x.beschreibung}</div><div class="rmeta">⏱ ${x.stunden}h · ${x.leistung}</div></div></div>`;
+    const th=x.fotos&&x.fotos.length>0?`<img src="${esc(x.fotos[0])}" class="rt">`:`<div class="rnt">📋</div>`;
+    return `<div class="ri" onclick="zeigeRapportModal('${esc(x.id)}','projekt')">${th}<div class="rb"><div class="rtp"><div class="rnm">${esc(mn)}</div><div class="rts">${ds}</div></div><div class="rdesc">${esc(x.beschreibung)}</div><div class="rmeta">⏱ ${x.stunden}h · ${esc(x.leistung)}</div></div></div>`;
   }).join('');
 
   // Stundenverteilung nach Mitarbeiter
@@ -1243,7 +1257,7 @@ function renderProjektKarte(){
   el.innerHTML=`<button class="back-btn" onclick="zurueckZuProjekten()">‹</button>
   <div class="pk op">
     <div class="ph">
-      <div class="pi"><div class="pn">${p.name}</div><div class="pm">${p.kunde}</div>${adresseAnzeige?`<div class="pm">${adresseAnzeige}</div>`:''}<div class="ptags">${tags}</div></div>
+      <div class="pi"><div class="pn">${esc(p.name)}</div><div class="pm">${esc(p.kunde||'—')}</div>${adresseAnzeige?`<div class="pm">${esc(adresseAnzeige)}</div>`:''}<div class="ptags">${tags}</div></div>
       <span class="sp ${sc}">${sl}</span>
     </div>
     <div class="pf"><div><div class="pstdl">Erfasste Stunden</div><div class="pstd">${sh>0?sh.toFixed(1)+'h':'—'}</div></div><button class="btn-pr" onclick="zuR('${p.id}')">📄 Rechnung</button></div>
@@ -1271,7 +1285,7 @@ function renderProjektKarte(){
       </div>
     </div>
     <div style="padding:14px;">
-      <button onclick="pdfProjekt('${p.id}')" style="width:100%;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${p.name}</button>
+      <button onclick="pdfProjekt('${esc(p.id)}')" style="width:100%;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${esc(p.name)}</button>
     </div>
   </div>`;
 
@@ -1296,18 +1310,18 @@ function zeigeRapportModal(id,quelle){
   if(!r)return;
   const mn=r.bd_mitarbeiter?.name||'—';
   const pn=r.bd_projekte?.name||'—';
-  const fotoHtml=(r.fotos&&r.fotos.length>0)?`<img src="${r.fotos[0]}" class="modal-photo">`:'<div class="modal-photo-ph">📋</div>';
+  const fotoHtml=(r.fotos&&r.fotos.length>0)?`<img src="${esc(r.fotos[0])}" class="modal-photo">`:'<div class="modal-photo-ph">📋</div>';
   document.getElementById('rapModalContent').innerHTML=`
     ${fotoHtml}
     <div class="modal-body">
-      <div class="modal-title">${pn}</div>
-      <div class="modal-sub">${mn} · ${r.datum}</div>
+      <div class="modal-title">${esc(pn)}</div>
+      <div class="modal-sub">${esc(mn)} · ${esc(r.datum)}</div>
       <div class="modal-meta">
-        <div class="modal-meta-item"><div class="modal-meta-l">Leistungsbereich</div><div class="modal-meta-v">${r.leistung||'—'}</div></div>
+        <div class="modal-meta-item"><div class="modal-meta-l">Leistungsbereich</div><div class="modal-meta-v">${esc(r.leistung||'—')}</div></div>
         <div class="modal-meta-item"><div class="modal-meta-l">Stunden</div><div class="modal-meta-v">${r.stunden}h</div></div>
       </div>
-      <div class="modal-desc">${r.beschreibung||''}</div>
-      <button onclick="bearbeiteRapport('${id}','${quelle}')" style="width:100%;margin-top:16px;padding:10px;background:var(--k3);color:var(--w);border:1px solid var(--r);border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">✎ Bearbeiten</button>
+      <div class="modal-desc">${esc(r.beschreibung||'')}</div>
+      <button onclick="bearbeiteRapport('${esc(id)}','${esc(quelle)}')" style="width:100%;margin-top:16px;padding:10px;background:var(--k3);color:var(--w);border:1px solid var(--r);border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">✎ Bearbeiten</button>
     </div>`;
   document.getElementById('rapModal').classList.add('on');
 }
@@ -1374,10 +1388,11 @@ async function renderAusw(){
   const al=document.getElementById('al'),ag=document.getElementById('ag');
   al.innerHTML='<div class="load"><div class="spinner"></div></div>';
   const h=new Date();let von;
-  if(period==='woche'){const mo=new Date(h);mo.setDate(h.getDate()-h.getDay()+1);von=mo.toISOString().split('T')[0];}
-  else if(period==='monat'){von=new Date(h.getFullYear(),h.getMonth(),1).toISOString().split('T')[0];}
+  if(period==='woche'){const mo=new Date(h);mo.setDate(h.getDate()-((h.getDay()+6)%7));von=isoLokal(mo);}
+  else if(period==='monat'){von=isoLokal(new Date(h.getFullYear(),h.getMonth(),1));}
   else{von='2000-01-01';}
-  const {data:rr}=await db.from('bd_rapporte').select('*,bd_mitarbeiter(name,rolle),bd_projekte(name)').gte('datum',von);
+  const {data:rr,error}=await db.from('bd_rapporte').select('*,bd_mitarbeiter(name,rolle),bd_projekte(name)').gte('datum',von);
+  if(error){al.innerHTML='<div class="empty"><div class="ei">⚠️</div>'+esc(error.message)+'</div>';return;}
   const r=rr||[];
   const gh=r.reduce((s,x)=>s+(x.stunden||0),0);
   ag.innerHTML=`<div class="gk"><div><div class="gl">${period==='woche'?'Diese Woche':period==='monat'?'Dieser Monat':'Gesamt'}</div><div class="gv">${gh.toFixed(1)}h</div></div><div class="gc"><div class="gl">Rapporte</div><div class="gcv">${r.length}</div></div></div>`;
@@ -1458,16 +1473,23 @@ async function rechnungSpeichern(){
 
 async function renderRech(){
   const el=document.getElementById('rl');el.innerHTML='<div class="load"><div class="spinner"></div></div>';
-  const {data:rr}=await db.from('bd_rechnungen').select('*,bd_projekte(name)').order('created_at',{ascending:false});
+  const {data:rr,error}=await db.from('bd_rechnungen').select('*,bd_projekte(name)').order('created_at',{ascending:false});
+  if(error){el.innerHTML='<div class="empty"><div class="ei">⚠️</div>'+esc(error.message)+'</div>';return;}
   if(!rr||!rr.length){el.innerHTML='<div class="empty"><div class="ei">📄</div>Noch keine Rechnungen.</div>';return;}
+  window._rechnungen=rr; // für pdfRechnung()-Lookup, statt das ganze Objekt ins onclick-Attribut zu serialisieren
   const sm={entwurf:['rp-e','Entwurf'],gesendet:['rp-s','Gesendet'],bezahlt:['rp-b','Bezahlt']};
   el.innerHTML=rr.map(x=>{
     const [sc,sl]=sm[x.status]||['rp-e',x.status];
     const pn=x.bd_projekte?.name||'—';
     const br=x.betrag_brutto?x.betrag_brutto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
     const nt=x.betrag_netto?x.betrag_netto.toLocaleString('de-DE',{style:'currency',currency:'EUR'}):'—';
-    return `<div class="rc"><div class="rct"><div><div class="rcnr">${x.rechnungsnummer}</div><div class="rcpr">${pn} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${x.datum}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${x.id}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${x.id}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick='pdf(${JSON.stringify(x).replace(/'/g,"&#39;")}, "${pn}")'>⬇ PDF</button><button class="btn-ra" style="color:var(--rt);" onclick="rechnungLoeschen('${x.id}','${x.rechnungsnummer}')">🗑 Löschen</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${x.notiz}</div>`:''}</div>`;
+    return `<div class="rc"><div class="rct"><div><div class="rcnr">${esc(x.rechnungsnummer)}</div><div class="rcpr">${esc(pn)} · ${x.typ==='teilrechnung'?'Teilrechnung':'Schlussrechnung'} · ${esc(x.datum)}</div></div><div><div class="rcb">${br}</div><div class="rcbs">Netto ${nt}</div></div></div><div class="rcf"><span class="rpi ${sc}">${sl}</span><div class="ra">${x.status==='entwurf'?`<button class="btn-ra" onclick="rSt('${esc(x.id)}','gesendet')">📤</button>`:''} ${x.status==='gesendet'?`<button class="btn-ra" style="color:var(--gr)" onclick="rSt('${esc(x.id)}','bezahlt')">✅</button>`:''}<button class="btn-ra btn-pdf" onclick="pdfRechnung('${esc(x.id)}')">⬇ PDF</button><button class="btn-ra" style="color:var(--rt);" onclick="rechnungLoeschen('${esc(x.id)}','${esc(x.rechnungsnummer)}')">🗑 Löschen</button></div></div>${x.notiz?`<div style="margin-top:10px;font-size:12px;color:var(--g);padding-top:10px;border-top:1px solid var(--r);">${esc(x.notiz)}</div>`:''}</div>`;
   }).join('');
+}
+
+function pdfRechnung(id){
+  const r=(window._rechnungen||[]).find(x=>String(x.id)===String(id));
+  if(r)pdf(r,r.bd_projekte?.name||'—');
 }
 
 async function renderMaKarte(){
@@ -1484,13 +1506,13 @@ async function renderMaKarte(){
   const rl=ROLLEN_LABEL[m.ro]||m.ro;
   const rr=m.rapporte.slice().sort((a,b)=>b.datum.localeCompare(a.datum));
   const rhtml=rr.length?rr.map(r=>`
-      <div style="padding:12px 0;border-bottom:1px solid var(--r);cursor:pointer;" onclick="zeigeRapportModal('${r.id}','ausw')">
+      <div style="padding:12px 0;border-bottom:1px solid var(--r);cursor:pointer;" onclick="zeigeRapportModal('${esc(r.id)}','ausw')">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
-          <div style="font-size:14px;font-weight:800;color:var(--w);">${r.bd_projekte?.name||'—'}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--w);">${esc(r.bd_projekte?.name||'—')}</div>
           <div style="font-size:16px;font-weight:900;color:var(--a);white-space:nowrap;">${r.stunden}h</div>
         </div>
-        <div style="font-size:11px;color:var(--g);margin-bottom:5px;">${r.datum} · ${r.leistung}</div>
-        <div style="font-size:12px;color:var(--tx);line-height:1.5;padding:8px 10px;background:var(--k3);border-radius:6px;">${r.beschreibung}</div>
+        <div style="font-size:11px;color:var(--g);margin-bottom:5px;">${esc(r.datum)} · ${esc(r.leistung)}</div>
+        <div style="font-size:12px;color:var(--tx);line-height:1.5;padding:8px 10px;background:var(--k3);border-radius:6px;">${esc(r.beschreibung)}</div>
       </div>`).join(''):'<div style="color:var(--g);font-size:13px;padding:8px 0;">Keine Rapporte im Zeitraum.</div>';
 
   // Verteilung nach Leistungsbereich
@@ -1522,8 +1544,8 @@ async function renderMaKarte(){
   <div class="mak">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
       <div>
-        <div class="man">${m.n}</div>
-        <span class="mar">${rl}</span>
+        <div class="man">${esc(m.n)}</div>
+        <span class="mar">${esc(rl)}</span>
       </div>
       <div style="text-align:right;">
         <div class="mav">${fmtStd(m.h)}</div>
@@ -1572,7 +1594,7 @@ async function renderMaKarte(){
         </div>
       </div>
 
-      <button onclick="pdfMA('${m.n}','${m.maId}')" style="width:100%;margin-top:14px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${m.n}</button>
+      <button onclick="pdfMA('${esc(m.maId)}')" style="width:100%;margin-top:14px;padding:10px;background:var(--a);color:var(--k);border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">⬇ PDF ${esc(m.n)}</button>
     </div>
   </div>`;
 
@@ -1582,7 +1604,9 @@ async function renderMaKarte(){
   chartMaWochen=erstelleStundenBarChart('chMaWochen',trendLabels,trendData);
 }
 
-function pdfMA(name, maId){
+function pdfMA(maId){
+  const m=(window._maArr||[]).find(x=>x.maId===maId);
+  const name=m?m.n:'—';
   const {jsPDF}=window.jspdf;const doc=new jsPDF({format:'a4',unit:'mm'});
   const rr=(window._auswRapporte||[]).filter(r=>r.mitarbeiter_id===maId).sort((a,b)=>b.datum.localeCompare(a.datum));
   const totalH=rr.reduce((s,r)=>s+(r.stunden||0),0);
@@ -1730,7 +1754,7 @@ async function renderStammdaten(){
 async function sdLadeMitarbeiter(){
   const el=document.getElementById('sdMaListe');
   const {data,error}=await db.from('bd_mitarbeiter').select('*').order('name');
-  if(error){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${error.message}</div>`;return;}
+  if(error){el.innerHTML=`<div class="empty"><div class="ei">⚠️</div>${esc(error.message)}</div>`;return;}
   mitarbeiterListe=data||[];
   sdRenderMaListe();
 }
@@ -1739,9 +1763,9 @@ function sdRenderMaListe(){
   const el=document.getElementById('sdMaListe');
   if(!mitarbeiterListe.length){el.innerHTML='<div class="empty"><div class="ei">👤</div>Noch keine Mitarbeiter.</div>';return;}
   el.innerHTML=mitarbeiterListe.map(m=>`
-    <div class="rc" style="cursor:pointer;" onclick="sdBearbeiteMitarbeiter('${m.id}')">
+    <div class="rc" style="cursor:pointer;" onclick="sdBearbeiteMitarbeiter('${esc(m.id)}')">
       <div class="rct">
-        <div><div class="rcnr">${m.name}</div><div class="rcpr">${ROLLEN_LABEL[m.rolle]||m.rolle}</div></div>
+        <div><div class="rcnr">${esc(m.name)}</div><div class="rcpr">${esc(ROLLEN_LABEL[m.rolle]||m.rolle)}</div></div>
         <span class="rpi ${m.aktiv===false?'rp-e':'rp-b'}">${m.aktiv===false?'Inaktiv':'Aktiv'}</span>
       </div>
     </div>`).join('');
@@ -1772,9 +1796,9 @@ function sdZeigeMaFormular(m){
   document.getElementById('sdMaForm').innerHTML=`
     <div class="nf on">
       <div class="nft">${istNeu?'Neuer Mitarbeiter':'Mitarbeiter bearbeiten'}</div>
-      <div class="ff"><label class="fl">Name</label><input type="text" id="sdMaName" class="fi" value="${m?.name||''}"></div>
+      <div class="ff"><label class="fl">Name</label><input type="text" id="sdMaName" class="fi" value="${esc(m?.name||'')}"></div>
       <div class="fr">
-        <div><label class="fl">PIN</label><input type="text" id="sdMaPin" class="fi" maxlength="4" inputmode="numeric" value="${m?.pin||''}"></div>
+        <div><label class="fl">PIN</label><input type="text" id="sdMaPin" class="fi" maxlength="4" inputmode="numeric" value="${esc(m?.pin||'')}"></div>
         <div><label class="fl">Rolle</label>
           <select id="sdMaRolle" class="fs">
             <option value="monteur">Monteur</option>
@@ -1784,7 +1808,7 @@ function sdZeigeMaFormular(m){
           </select>
         </div>
       </div>
-      <div class="ff"><label class="fl">E-Mail</label><input type="email" id="sdMaEmail" class="fi" value="${m?.email||''}"></div>
+      <div class="ff"><label class="fl">E-Mail</label><input type="email" id="sdMaEmail" class="fi" value="${esc(m?.email||'')}"></div>
       <div class="ff"><label class="fl">Stundensatz €</label><input type="number" id="sdMaSatz" class="fi" step="0.5" value="${m?.stundensatz??''}"></div>
       <div class="ff">
         <label class="fl">Status</label>
@@ -1796,7 +1820,7 @@ function sdZeigeMaFormular(m){
       <div class="ff"><label class="fl">Login verknüpft</label><div style="font-size:13px;color:var(--tx);padding:10px 0;">${m?.auth_user_id?'✅ Ja':'— Nein'}</div></div>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn-send" id="sdMaSaveBtn" style="flex:1;margin-top:0;" onclick="sdMitarbeiterSpeichern()">${istNeu?'Anlegen →':'Speichern →'}</button>
-        ${kannLoeschen?`<button class="btn-ra" style="background:var(--rt);color:#fff;border-color:var(--rt);" onclick="sdMitarbeiterLoeschen('${m.id}')">🗑</button>`:''}
+        ${kannLoeschen?`<button class="btn-ra" style="background:var(--rt);color:#fff;border-color:var(--rt);" onclick="sdMitarbeiterLoeschen('${esc(m.id)}')">🗑</button>`:''}
       </div>
     </div>`;
   document.getElementById('sdMaRolle').value=m?.rolle||'monteur';
@@ -1852,9 +1876,9 @@ function sdRenderProjListe(){
   if(!projekte.length){el.innerHTML='<div class="empty"><div class="ei">🏗️</div>Noch keine Projekte.</div>';return;}
   el.innerHTML=projekte.map(p=>{
     const [sc,sl]=PROJEKT_STATUS[p.status]||['pill-g',p.status];
-    return `<div class="rc" style="cursor:pointer;" onclick="sdBearbeiteProjekt('${p.id}')">
+    return `<div class="rc" style="cursor:pointer;" onclick="sdBearbeiteProjekt('${esc(p.id)}')">
       <div class="rct">
-        <div><div class="rcnr">${p.name}</div><div class="rcpr">${p.kunde||'—'}</div></div>
+        <div><div class="rcnr">${esc(p.name)}</div><div class="rcpr">${esc(p.kunde||'—')}</div></div>
         <span class="sp ${sc}">${sl}</span>
       </div>
     </div>`;
@@ -1886,17 +1910,17 @@ function sdZeigeProjFormular(p){
   document.getElementById('sdProjForm').innerHTML=`
     <div class="nf on">
       <div class="nft">${istNeu?'Neues Projekt':'Projekt bearbeiten'}</div>
-      <div class="ff"><label class="fl">Name</label><input type="text" id="sdProjName" class="fi" value="${p?.name||''}"></div>
-      <div class="ff"><label class="fl">Kunde</label><input type="text" id="sdProjKunde" class="fi" value="${p?.kunde||''}"></div>
+      <div class="ff"><label class="fl">Name</label><input type="text" id="sdProjName" class="fi" value="${esc(p?.name||'')}"></div>
+      <div class="ff"><label class="fl">Kunde</label><input type="text" id="sdProjKunde" class="fi" value="${esc(p?.kunde||'')}"></div>
       <div class="ff">
         <label class="fl">Adresse</label>
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px;">
-          <input type="text" id="sdProjStrasse" class="fi" placeholder="Straße" value="${p?.strasse||''}">
-          <input type="text" id="sdProjHausnr" class="fi" placeholder="Nr." value="${p?.hausnummer||''}">
+          <input type="text" id="sdProjStrasse" class="fi" placeholder="Straße" value="${esc(p?.strasse||'')}">
+          <input type="text" id="sdProjHausnr" class="fi" placeholder="Nr." value="${esc(p?.hausnummer||'')}">
         </div>
         <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;">
-          <input type="text" id="sdProjPlz" class="fi" placeholder="PLZ" inputmode="numeric" value="${p?.plz||''}">
-          <input type="text" id="sdProjOrt" class="fi" placeholder="Ort" value="${p?.ort||''}">
+          <input type="text" id="sdProjPlz" class="fi" placeholder="PLZ" inputmode="numeric" value="${esc(p?.plz||'')}">
+          <input type="text" id="sdProjOrt" class="fi" placeholder="Ort" value="${esc(p?.ort||'')}">
         </div>
       </div>
       <div class="ff"><label class="fl">Status</label>
@@ -1919,7 +1943,7 @@ function sdZeigeProjFormular(p){
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn-send" id="sdProjSaveBtn" style="flex:1;margin-top:0;" onclick="sdProjektSpeichern()">${istNeu?'Anlegen →':'Speichern →'}</button>
-        ${kannLoeschen?`<button class="btn-ra" style="background:var(--rt);color:#fff;border-color:var(--rt);" onclick="sdProjektLoeschen('${p.id}')">🗑</button>`:''}
+        ${kannLoeschen?`<button class="btn-ra" style="background:var(--rt);color:#fff;border-color:var(--rt);" onclick="sdProjektLoeschen('${esc(p.id)}')">🗑</button>`:''}
       </div>
     </div>`;
   document.getElementById('sdProjStatus').value=p?.status||'offen';
